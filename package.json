@@ -21,6 +21,7 @@
   "dependencies": {
     "n3": "^1.17.2",
     "cytoscape": "^3.30.2",
-    "markdown-ld": "^0.8.0"
+    "markdown-ld": "^0.8.0",
+    "mermaid": "^10.9.1"
   }
 }
