@@ -74,7 +74,7 @@ export async function loadMarkdownOntologies(app: App, store: N3.Store): Promise
       const content = await fs.promises.readFile(path.join(ontologyFolder, file), 'utf-8');
       try {
         const plugin = app.plugins.plugins['semantic-weaver'] as RDFPlugin;
-        const modal = new MarkdownLDModal(app, plugin, null, async () => {});
+        const modal = new MarkdownLDModal(app, plugin, null, async () => {}, plugin.settings.outputFormat);
         const { graph } = modal.parseMarkdownLD(content);
         const parser = new N3.Parser({ format: 'application/ld+json' });
         const quads = await new Promise<N3.Quad[]>((resolve, reject) => {
@@ -320,7 +320,7 @@ export async function copyDocs(plugin: RDFPlugin, pluginDir: string, exportDir: 
 }
 
 export async function deployToGitHub(plugin: RDFPlugin, exportDir: string): Promise<void> {
-  const { githubRepo } = plugin.settings;
+  const { githubRepo, githubToken } = plugin.settings;
   if (!githubRepo) {
     new Notice('GitHub repository not configured. Set in Settings > Semantic Weaver Settings.');
     return;
@@ -330,11 +330,13 @@ export async function deployToGitHub(plugin: RDFPlugin, exportDir: string): Prom
     if (!await fs.promises.access(gitDir).then(() => true).catch(() => false)) {
       await fs.promises.mkdir(exportDir, { recursive: true });
       await require('child_process').execSync(`git init`, { cwd: exportDir });
-      await require('child_process').execSync(`git remote add origin ${githubRepo}`, { cwd: exportDir });
+      const remoteUrl = githubToken ? `https://${githubToken}@github.com/${githubRepo}.git` : `https://github.com/${githubRepo}.git`;
+      await require('child_process').execSync(`git remote add origin ${remoteUrl}`, { cwd: exportDir });
     }
     await require('child_process').execSync(`git add .`, { cwd: exportDir });
     await require('child_process').execSync(`git commit -m "Deploy RDF docs to GitHub Pages"`, { cwd: exportDir });
-    await require('child_process').execSync(`git push -f origin main`, { cwd: exportDir });
+    const pushCommand = githubToken ? `git push -f origin main` : `git push -f origin main`;
+    await require('child_process').execSync(pushCommand, { cwd: exportDir });
     new Notice(`Deployed RDF docs to ${githubRepo}`);
   } catch (error) {
     new Notice(`Failed to deploy to GitHub: ${error.message}`);
