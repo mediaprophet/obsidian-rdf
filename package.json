@@ -11,12 +11,11 @@
   "license": "MIT",
   "dependencies": {
     "cytoscape": "^3.30.2",
-    "rdflib": "^2.2.37"
+    "n3": "^1.17.2"
   },
   "devDependencies": {
     "@types/node": "^20.14.2",
     "esbuild": "^0.23.0",
-    "esbuild-node-externals": "^1.13.1",
     "obsidian": "^1.5.3",
     "typescript": "^5.4.5"
   }

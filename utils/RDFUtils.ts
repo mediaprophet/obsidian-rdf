@@ -2,10 +2,10 @@ import { App, Notice, TFile } from 'obsidian';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as child_process from 'child_process';
-import * as rdflib from 'rdflib';
+import * as N3 from 'n3';
 import { RDFPlugin } from '../main';
 
-const { namedNode, literal, quad } = rdflib;
+const { namedNode, literal, quad } = N3.DataFactory;
 
 export async function loadOntology(app: App): Promise<string> {
   const ontologyPath = path.join(app.vault.adapter.basePath, 'ontology', 'ontology.ttl').replace(/\\/g, '/');
@@ -66,20 +66,29 @@ ex:Person a rdfs:Class ;
   }
 }
 
-export async function loadProjectTTL(app: App, store: rdflib.Store): Promise<void> {
+export async function loadProjectTTL(app: App, store: N3.Store): Promise<void> {
   const projectPath = path.join(app.vault.adapter.basePath, 'ontology', 'project.ttl').replace(/\\/g, '/');
   if (await fs.promises.access(projectPath).then(() => true).catch(() => false)) {
     try {
       const content = await fs.promises.readFile(projectPath, 'utf-8');
-      rdflib.parse(content, store, `file://${projectPath}`, 'text/turtle');
+      const parser = new N3.Parser({ format: 'Turtle' });
+      const quads = await new Promise<N3.Quad[]>((resolve, reject) => {
+        const quads: N3.Quad[] = [];
+        parser.parse(content, (error, quad, prefixes) => {
+          if (error) reject(error);
+          if (quad) quads.push(quad);
+          else resolve(quads);
+        });
+      });
+      await store.addQuads(quads);
     } catch (error) {
       throw new Error(`Could not load project TTL from ${projectPath}: ${error.message}`);
     }
   }
 }
 
-export async function storeQuad(store: rdflib.Store, quads: any[]): Promise<void> {
-  quads.forEach(q => store.add(q));
+export async function storeQuad(store: N3.Store, quads: any[]): Promise<void> {
+  await store.addQuads(quads);
 }
 
 export async function parseCML(plugin: RDFPlugin, markdown: string): Promise<any[]> {
@@ -109,11 +118,11 @@ export async function parseCML(plugin: RDFPlugin, markdown: string): Promise<any
 
 export async function canvasToTurtle(plugin: RDFPlugin, canvasData: any): Promise<string> {
   const store = plugin.rdfStore;
-  let turtle = '';
+  const writer = new N3.Writer({ format: 'Turtle' });
   for (const node of canvasData.nodes) {
     const nodeUri = node.url || `${plugin.settings.namespaces.ex}${node.id}`;
-    const statements = store.match(namedNode(nodeUri), null, null);
-    turtle += statements.map(s => `<${s.subject.value}> <${s.predicate.value}> ${s.object.termType === 'Literal' ? `"${s.object.value}"` : `<${s.object.value}>`} .`).join('\n') + '\n';
+    const quads = store.getQuads(namedNode(nodeUri), null, null);
+    quads.forEach(q => writer.addQuad(q));
   }
   for (const edge of canvasData.edges) {
     const fromNode = canvasData.nodes.find(n => n.id === edge.fromNode);
@@ -122,10 +131,15 @@ export async function canvasToTurtle(plugin: RDFPlugin, canvasData: any): Promis
       const fromUri = fromNode.url || `${plugin.settings.namespaces.ex}${edge.fromNode}`;
       const toUri = toNode.url || `${plugin.settings.namespaces.ex}${edge.toNode}`;
       const predicate = edge.rdfPredicate || 'ex:relatedTo';
-      turtle += `<${fromUri}> <${predicate}> <${toUri}> .\n`;
+      writer.addQuad(quad(namedNode(fromUri), namedNode(predicate), namedNode(toUri)));
     }
   }
-  return turtle;
+  return new Promise<string>((resolve, reject) => {
+    writer.end((error, result) => {
+      if (error) reject(error);
+      else resolve(result);
+    });
+  });
 }
 
 export async function exportCanvasToRDF(plugin: RDFPlugin, canvasFile: TFile, format: 'jsonld' | 'turtle'): Promise<string> {
@@ -135,7 +149,7 @@ export async function exportCanvasToRDF(plugin: RDFPlugin, canvasFile: TFile, fo
   const quads = [];
   for (const node of canvasData.nodes) {
     const nodeUri = node.url || `${plugin.settings.namespaces.ex}${node.id}`;
-    const nodeQuads = store.match(namedNode(nodeUri), null, null);
+    const nodeQuads = store.getQuads(namedNode(nodeUri), null, null);
     quads.push(...nodeQuads);
   }
   for (const edge of canvasData.edges) {
@@ -150,20 +164,28 @@ export async function exportCanvasToRDF(plugin: RDFPlugin, canvasFile: TFile, fo
   }
 
   if (format === 'jsonld') {
-    const jsonld = quads.map(q => ({
-      subject: q.subject.value,
-      predicate: q.predicate.value,
-      object: q.object.value,
-      objectType: q.object.termType
-    }));
-    return JSON.stringify(jsonld);
+    const writer = new N3.Writer({ format: 'application/ld+json' });
+    quads.forEach(q => writer.addQuad(q));
+    return new Promise<string>((resolve, reject) => {
+      writer.end((error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      });
+    });
   } else if (format === 'turtle') {
-    return quads.map(q => `<${q.subject.value}> <${q.predicate.value}> ${q.object.termType === 'Literal' ? `"${q.object.value}"` : `<${q.object.value}>`} .`).join('\n');
+    const writer = new N3.Writer({ format: 'Turtle' });
+    quads.forEach(q => writer.addQuad(q));
+    return new Promise<string>((resolve, reject) => {
+      writer.end((error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      });
+    });
   }
   return '';
 }
 
-export async function fetchOntologyTerms(store: rdflib.Store): Promise<{ uri: string, label: string }[]> {
+export async function fetchOntologyTerms(store: N3.Store): Promise<{ uri: string, label: string }[]> {
   const query = `
     SELECT ?uri ?label WHERE {
       ?uri a <http://www.w3.org/2002/07/owl#Class> .
@@ -171,18 +193,18 @@ export async function fetchOntologyTerms(store: rdflib.Store): Promise<{ uri: st
     }
   `;
   const results = [];
-  store.query(query).forEach(s => {
+  for await (const binding of store.query(query)) {
     results.push({
-      uri: s.subject.value,
-      label: s.object.value
+      uri: binding.get('uri')?.value,
+      label: binding.get('label')?.value
     });
-  });
+  }
   return results;
 }
 
 export function extractCMLDMetadata(content: string): { [key: string]: string } {
   const metadata: { [key: string]: string } = {};
-  const cmlPattern = /@doc\s+\[(.*?)\]\s*(.*?)(?=\n\[|\n@doc|\Z)/s;
+  const cmlPattern = /(@doc\s+\[(.*?)\]\s*(.*?)(?=\n\[|\n@doc|\Z))/s;
   const match = content.match(cmlPattern);
   if (match) {
     const properties = match[2].trim().split(';').map(p => p.trim()).filter(p => p && p.includes(':'));
@@ -229,17 +251,66 @@ export async function deployToGitHub(plugin: RDFPlugin, exportDir: string) {
 }
 
 export async function generateProjectTTL(plugin: RDFPlugin): Promise<string> {
-  return `
-    @prefix doap: <http://usefulinc.com/ns/doap#> .
-    @prefix schema: <http://schema.org/> .
-    @prefix dc: <http://purl.org/dc/elements/1.1/> .
-    <http://example.org/project/${plugin.app.vault.getName()}> a doap:Project, schema:SoftwareApplication ;
-      dc:title "${plugin.app.vault.getName()}" ;
-      dc:creator "Semantic Weaver" ;
-      dc:date "2025-07-15" ;
-      doap:homepage "${plugin.settings.siteUrl || ''}" ;
-      doap:repository "${plugin.settings.githubRepo ? `https://github.com/${plugin.settings.githubRepo}` : ''}" .
-  `;
+  const writer = new N3.Writer({ format: 'Turtle' });
+  writer.addQuad(
+    quad(
+      namedNode(`http://example.org/project/${plugin.app.vault.getName()}`),
+      namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
+      namedNode('http://usefulinc.com/ns/doap#Project')
+    )
+  );
+  writer.addQuad(
+    quad(
+      namedNode(`http://example.org/project/${plugin.app.vault.getName()}`),
+      namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
+      namedNode('http://schema.org/SoftwareApplication')
+    )
+  );
+  writer.addQuad(
+    quad(
+      namedNode(`http://example.org/project/${plugin.app.vault.getName()}`),
+      namedNode('http://purl.org/dc/elements/1.1/title'),
+      literal(plugin.app.vault.getName())
+    )
+  );
+  writer.addQuad(
+    quad(
+      namedNode(`http://example.org/project/${plugin.app.vault.getName()}`),
+      namedNode('http://purl.org/dc/elements/1.1/creator'),
+      literal('Semantic Weaver')
+    )
+  );
+  writer.addQuad(
+    quad(
+      namedNode(`http://example.org/project/${plugin.app.vault.getName()}`),
+      namedNode('http://purl.org/dc/elements/1.1/date'),
+      literal('2025-07-15')
+    )
+  );
+  if (plugin.settings.siteUrl) {
+    writer.addQuad(
+      quad(
+        namedNode(`http://example.org/project/${plugin.app.vault.getName()}`),
+        namedNode('http://usefulinc.com/ns/doap#homepage'),
+        namedNode(plugin.settings.siteUrl)
+      )
+    );
+  }
+  if (plugin.settings.githubRepo) {
+    writer.addQuad(
+      quad(
+        namedNode(`http://example.org/project/${plugin.app.vault.getName()}`),
+        namedNode('http://usefulinc.com/ns/doap#repository'),
+        namedNode(`https://github.com/${plugin.settings.githubRepo}`)
+      )
+    );
+  }
+  return new Promise<string>((resolve, reject) => {
+    writer.end((error, result) => {
+      if (error) reject(error);
+      else resolve(result);
+    });
+  });
 }
 
 export async function copyDocs(plugin: RDFPlugin, pluginDir: string, exportDir: string, includeTests: boolean) {

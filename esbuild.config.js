@@ -8,5 +8,6 @@ esbuild.build({
   format: 'cjs',
   target: 'es2018',
   sourcemap: true,
-  external: [], // Explicitly include all dependencies in the bundle
+  treeShaking: true,
+  minify: false
 }).catch(() => process.exit(1));

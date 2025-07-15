@@ -89,7 +89,7 @@ export class RDFPluginSettingTab extends PluginSettingTab {
         .setValue(this.plugin.settings.githubRepo)
         .onChange(async value => {
           this.plugin.settings.githubRepo = value;
-          await this.plugin.saveSettings();
+          await this.saveSettings();
         }));
   }
 }

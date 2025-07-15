@@ -1,22 +1,32 @@
 import { Plugin, Notice } from 'obsidian';
-import * as rdflib from 'rdflib';
+import * as N3 from 'n3';
 import { RDFPluginSettings, DEFAULT_SETTINGS, RDFPluginSettingTab } from './settings/RDFPluginSettings';
 import { RDFGraphView } from './views/RDFGraphView';
 import { loadOntology, loadProjectTTL, storeQuad, parseCML, canvasToTurtle, exportCanvasToRDF, fetchOntologyTerms, extractCMLDMetadata, updateCMLDMetadata, deployToGitHub, generateProjectTTL, copyDocs, copyJsFiles } from './utils/RDFUtils';
 import * as path from 'path';
 
+const { namedNode, literal, quad } = N3.DataFactory;
+
 export default class RDFPlugin extends Plugin {
   settings: RDFPluginSettings;
-  rdfStore: rdflib.Store;
+  rdfStore: N3.Store;
   ontologyTtl: string;
 
   async onload() {
     await this.loadSettings();
-    this.rdfStore = rdflib.graph();
+    this.rdfStore = new N3.Store();
     this.ontologyTtl = await loadOntology(this.app);
     try {
-      await loadOntology(this.app); // Load ontology TTL
-      rdflib.parse(this.ontologyTtl, this.rdfStore, `file://${path.join(this.app.vault.adapter.basePath, 'ontology', 'ontology.ttl').replace(/\\/g, '/')}`, 'text/turtle');
+      const parser = new N3.Parser({ format: 'Turtle' });
+      const quads = await new Promise<N3.Quad[]>((resolve, reject) => {
+        const quads: N3.Quad[] = [];
+        parser.parse(this.ontologyTtl, (error, quad, prefixes) => {
+          if (error) reject(error);
+          if (quad) quads.push(quad);
+          else resolve(quads);
+        });
+      });
+      await this.rdfStore.addQuads(quads);
     } catch (error) {
       new Notice(`Failed to load ontology: ${error.message}. Using default ontology.`);
       console.error(error);
@@ -34,8 +44,17 @@ export default class RDFPlugin extends Plugin {
           this.settings.namespaces = namespaces;
           this.ontologyTtl = ontologyTtl;
           await this.saveSettings();
-          this.rdfStore = rdflib.graph();
-          rdflib.parse(this.ontologyTtl, this.rdfStore, `file://${path.join(this.app.vault.adapter.basePath, 'ontology', 'ontology.ttl').replace(/\\/g, '/')}`, 'text/turtle');
+          this.rdfStore = new N3.Store();
+          const parser = new N3.Parser({ format: 'Turtle' });
+          const quads = await new Promise<N3.Quad[]>((resolve, reject) => {
+            const quads: N3.Quad[] = [];
+            parser.parse(this.ontologyTtl, (error, quad, prefixes) => {
+              if (error) reject(error);
+              if (quad) quads.push(quad);
+              else resolve(quads);
+            });
+          });
+          await this.rdfStore.addQuads(quads);
           new Notice('Namespaces and ontology saved by Semantic Weaver.');
         }).open();
       });
@@ -207,16 +226,25 @@ export default class RDFPlugin extends Plugin {
     const canvasContent = await this.app.vault.read(file);
     const canvasData = JSON.parse(canvasContent);
     const turtle = await canvasToTurtle(this, canvasData);
-    const tempStore = rdflib.graph();
-    rdflib.parse(turtle, tempStore, `file://${file.path}`, 'text/turtle');
-    const results = [];
-    tempStore.query(query).forEach(s => {
-      results.push({
-        subject: s.subject.value,
-        predicate: s.predicate.value,
-        object: s.object.value
+    const tempStore = new N3.Store();
+    const parser = new N3.Parser({ format: 'Turtle' });
+    const quads = await new Promise<N3.Quad[]>((resolve, reject) => {
+      const quads: N3.Quad[] = [];
+      parser.parse(turtle, (error, quad, prefixes) => {
+        if (error) reject(error);
+        if (quad) quads.push(quad);
+        else resolve(quads);
       });
     });
+    await tempStore.addQuads(quads);
+    const results = [];
+    for await (const binding of tempStore.query(query)) {
+      results.push({
+        subject: binding.get('subject')?.value,
+        predicate: binding.get('predicate')?.value,
+        object: binding.get('object')?.value
+      });
+    }
     return results;
   }
 
