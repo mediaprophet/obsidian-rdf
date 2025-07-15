@@ -1,228 +1,285 @@
 import { ItemView, WorkspaceLeaf, Notice } from 'obsidian';
 import cytoscape from 'cytoscape';
+import contextMenus from 'cytoscape-context-menus';
 import { RDFPlugin } from '../main';
+import * as N3 from 'n3';
+import ForceGraph3D from '3d-force-graph';
 
-export const VIEW_TYPE_RDF_GRAPH = 'rdf-graph';
+export const RDF_GRAPH_VIEW = 'rdf-graph';
 
 export class RDFGraphView extends ItemView {
-  private plugin: RDFPlugin;
-  private cy: cytoscape.Core | null = null;
-  private selectedNode: cytoscape.NodeSingular | null = null;
-  private attributesPanel: HTMLElement | null = null;
+  plugin: RDFPlugin;
+  cy: cytoscape.Core | null = null;
+  forceGraph: any | null = null;
+  is3DMode: boolean = false;
 
   constructor(leaf: WorkspaceLeaf, plugin: RDFPlugin) {
     super(leaf);
     this.plugin = plugin;
+    cytoscape.use(contextMenus);
   }
 
-  getViewType(): string {
-    return VIEW_TYPE_RDF_GRAPH;
+  getViewType() {
+    return RDF_GRAPH_VIEW;
   }
 
-  getDisplayText(): string {
+  getDisplayText() {
     return 'RDF Graph View';
   }
 
-  getIcon(): string {
-    return 'network';
+  getIcon() {
+    return 'ri-git-branch-line';
   }
 
   async onOpen() {
-    const container = this.containerEl.createDiv({ cls: 'rdf-graph-container' });
-    container.style.height = '100%';
-    container.style.width = '100%';
+    const container = this.containerEl.children[1];
+    container.empty();
+    container.addClass('rdf-graph-view');
 
-    // Attributes panel for RDF properties
-    this.attributesPanel = this.containerEl.createDiv({ cls: 'rdf-attributes-panel' });
-    this.attributesPanel.style.position = 'absolute';
-    this.attributesPanel.style.top = '10px';
-    this.attributesPanel.style.right = '10px';
-    this.attributesPanel.style.width = '300px';
-    this.attributesPanel.style.maxHeight = '80%';
-    this.attributesPanel.style.overflowY = 'auto';
-    this.attributesPanel.style.background = 'var(--background-secondary)';
-    this.attributesPanel.style.padding = '10px';
-    this.attributesPanel.style.border = '1px solid var(--background-modifier-border)';
-    this.attributesPanel.style.display = 'none';
+    // Toggle Button
+    const toggleButton = container.createEl('button', {
+      cls: 'semantic-weaver-toggle-button',
+      text: 'Switch to 3D View',
+    });
+    toggleButton.addEventListener('click', () => {
+      this.is3DMode = !this.is3DMode;
+      toggleButton.setText(this.is3DMode ? 'Switch to 2D View' : 'Switch to 3D View');
+      this.renderGraph();
+    });
 
+    // Graph Container
+    const graphContainer = container.createEl('div', { cls: 'rdf-graph-container' });
+    this.renderGraph();
+  }
+
+  async renderGraph() {
+    const container = this.containerEl.querySelector('.rdf-graph-container') as HTMLElement;
+    container.empty();
+
+    if (this.is3DMode) {
+      await this.render3DGraph(container);
+    } else {
+      await this.render2DGraph(container);
+    }
+  }
+
+  async render2DGraph(container: HTMLElement) {
+    if (this.forceGraph) {
+      this.forceGraph = null;
+    }
+
+    const elements = await this.getGraphElements();
     this.cy = cytoscape({
-      container: container,
-      elements: [],
+      container,
+      elements,
       style: [
         {
           selector: 'node',
           style: {
-            'background-color': '#666',
-            'label': 'data(label)',
+            'background-color': '#7d5bed',
+            label: 'data(label)',
             'text-valign': 'center',
-            'color': '#fff',
-            'text-outline-width': 2,
-            'text-outline-color': '#000'
-          }
+            'text-halign': 'center',
+            color: '#ffffff',
+            'font-size': '12px',
+          },
         },
         {
           selector: 'edge',
           style: {
-            'width': 2,
-            'line-color': '#ccc',
-            'target-arrow-color': '#ccc',
+            'line-color': '#5b4dd6',
+            'target-arrow-color': '#5b4dd6',
             'target-arrow-shape': 'triangle',
+            label: 'data(label)',
+            'font-size': '10px',
+            color: '#ffffff',
             'curve-style': 'bezier',
-            'label': 'data(label)',
-            'text-outline-width': 2,
-            'text-outline-color': '#000'
-          }
-        }
+          },
+        },
       ],
-      layout: {
-        name: 'cose',
-        idealEdgeLength: 100,
-        nodeOverlap: 20,
-        fit: true
-      },
-      userPanningEnabled: true,
-      userZoomingEnabled: true,
-      autoungrabify: false, // Allows manual node movement
-      boxSelectionEnabled: true
+      layout: { name: 'cose', animate: true },
     });
 
-    // Center graph on clicked node
-    this.cy.on('tap', 'node', (event) => {
-      this.selectedNode = event.target;
-      this.updateAttributesPanel();
-      this.cy.center(this.selectedNode);
-    });
-
-    // Hide attributes panel when clicking outside nodes
-    this.cy.on('tap', (event) => {
-      if (event.target === this.cy) {
-        this.selectedNode = null;
-        this.attributesPanel.style.display = 'none';
-      }
-    });
-
-    await this.updateGraph();
-
-    // Add self-organize button
-    const layoutButton = this.containerEl.createEl('button', { text: 'Self-Organize Graph' });
-    layoutButton.style.position = 'absolute';
-    layoutButton.style.top = '10px';
-    layoutButton.style.left = '10px';
-    layoutButton.addEventListener('click', () => {
-      this.cy.layout({ name: 'cose', fit: true }).run();
-    });
-
-    // Context menu enhancements
-    this.cy.contextMenus({
+    (this.cy as any).contextMenus({
       menuItems: [
         {
-          id: 'view-in-source',
-          content: 'View in Source',
-          selector: 'node',
-          onClickFunction: (event) => {
-            const node = event.target;
-            this.viewInSource(node);
-          }
-        },
-        {
-          id: 'expand-neighbors',
+          id: 'expand',
           content: 'Expand Neighbors',
           selector: 'node',
-          onClickFunction: (event) => {
+          onClickFunction: async (event: any) => {
             const node = event.target;
-            this.expandNeighbors(node);
-          }
+            const nodeId = node.id();
+            const neighbors = await this.getNeighbors(nodeId);
+            this.cy?.add(neighbors);
+            this.cy?.layout({ name: 'cose', animate: true }).run();
+          },
         },
         {
-          id: 'hide-node',
-          content: 'Hide Node',
+          id: 'attributes',
+          content: 'View Attributes',
           selector: 'node',
-          onClickFunction: (event) => {
+          onClickFunction: (event: any) => {
             const node = event.target;
-            node.remove();
-          }
-        }
-      ]
+            const attributes = node.data('attributes');
+            new Notice(`Attributes: ${JSON.stringify(attributes)}`);
+          },
+        },
+      ],
     });
   }
 
-  async updateGraph() {
-    if (!this.cy) return;
-    const quads = this.plugin.rdfStore.getQuads(null, null, null);
+  async render3DGraph(container: HTMLElement) {
+    if (this.cy) {
+      this.cy.destroy();
+      this.cy = null;
+    }
+
+    const { nodes, links } = await this.get3DGraphData();
+    this.forceGraph = ForceGraph3D()(container)
+      .graphData({ nodes, links })
+      .nodeLabel('label')
+      .nodeColor(() => '#7d5bed')
+      .linkColor(() => '#5b4dd6')
+      .linkWidth(2)
+      .nodeAutoColorBy('type')
+      .linkDirectionalArrowLength(5)
+      .linkDirectionalArrowRelPos(1)
+      .onNodeClick((node: any) => {
+        new Notice(`Node: ${node.label}\nAttributes: ${JSON.stringify(node.attributes)}`);
+      })
+      .onLinkClick((link: any) => {
+        new Notice(`Edge: ${link.label}`);
+      });
+
+    // Camera settings for better visibility
+    this.forceGraph.cameraPosition({ z: 300 });
+  }
+
+  async getGraphElements(): Promise<any[]> {
     const elements: any[] = [];
-    const nodes = new Set<string>();
-
-    quads.forEach(quad => {
+    const seenNodes = new Set<string>();
+    for await (const quad of this.plugin.rdfStore.getQuads(null, null, null, null)) {
       const subject = quad.subject.value;
-      const object = quad.object.termType === 'NamedNode' ? quad.object.value : null;
       const predicate = quad.predicate.value;
+      const object = quad.object.value;
 
-      if (!nodes.has(subject)) {
-        nodes.add(subject);
+      if (!seenNodes.has(subject)) {
+        seenNodes.add(subject);
+        const label = subject.split('/').pop() || subject;
+        const attributes = await this.getNodeAttributes(subject);
         elements.push({
-          data: { id: subject, label: subject.split('/').pop() || subject }
+          data: { id: subject, label, attributes },
         });
       }
-      if (object && !nodes.has(object)) {
-        nodes.add(object);
+
+      if (quad.object.termType === 'NamedNode' && !seenNodes.has(object)) {
+        seenNodes.add(object);
+        const label = object.split('/').pop() || object;
+        const attributes = await this.getNodeAttributes(object);
         elements.push({
-          data: { id: object, label: object.split('/').pop() || object }
+          data: { id: object, label, attributes },
         });
       }
-      if (object) {
+
+      if (quad.object.termType === 'NamedNode') {
+        const label = predicate.split('/').pop() || predicate;
         elements.push({
           data: {
             id: `${subject}-${predicate}-${object}`,
             source: subject,
             target: object,
-            label: predicate.split('/').pop() || predicate
-          }
+            label,
+          },
         });
       }
-    });
-
-    this.cy.remove(this.cy.elements());
-    this.cy.add(elements);
-    this.cy.layout({ name: 'cose', fit: true }).run();
-  }
-
-  updateAttributesPanel() {
-    if (!this.selectedNode || !this.attributesPanel) return;
-    const nodeId = this.selectedNode.id();
-    const quads = this.plugin.rdfStore.getQuads(namedNode(nodeId), null, null);
-    this.attributesPanel.empty();
-    if (quads.length === 0) {
-      this.attributesPanel.createEl('p', { text: 'No attributes found.' });
-    } else {
-      const table = this.attributesPanel.createEl('table');
-      const headerRow = table.createEl('tr');
-      headerRow.createEl('th', { text: 'Property' });
-      headerRow.createEl('th', { text: 'Value' });
-      quads.forEach(quad => {
-        const row = table.createEl('tr');
-        row.createEl('td', { text: quad.predicate.value });
-        row.createEl('td', { text: quad.object.value });
-      });
     }
-    this.attributesPanel.style.display = 'block';
+    return elements;
   }
 
-  viewInSource(node: cytoscape.NodeSingular) {
-    const nodeId = node.id();
-    // Placeholder: Logic to open source document and scroll to relevant section
-    new Notice(`Opening source for node: ${nodeId} (not fully implemented)`);
+  async get3DGraphData(): Promise<{ nodes: any[], links: any[] }> {
+    const nodes: any[] = [];
+    const links: any[] = [];
+    const seenNodes = new Set<string>();
+
+    for await (const quad of this.plugin.rdfStore.getQuads(null, null, null, null)) {
+      const subject = quad.subject.value;
+      const predicate = quad.predicate.value;
+      const object = quad.object.value;
+
+      if (!seenNodes.has(subject)) {
+        seenNodes.add(subject);
+        const label = subject.split('/').pop() || subject;
+        const attributes = await this.getNodeAttributes(subject);
+        const type = (await this.plugin.rdfStore.getQuads(subject, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type', null, null))[0]?.object.value || '';
+        nodes.push({ id: subject, label, attributes, type });
+      }
+
+      if (quad.object.termType === 'NamedNode' && !seenNodes.has(object)) {
+        seenNodes.add(object);
+        const label = object.split('/').pop() || object;
+        const attributes = await this.getNodeAttributes(object);
+        const type = (await this.plugin.rdfStore.getQuads(object, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type', null, null))[0]?.object.value || '';
+        nodes.push({ id: object, label, attributes, type });
+      }
+
+      if (quad.object.termType === 'NamedNode') {
+        const label = predicate.split('/').pop() || predicate;
+        links.push({
+          source: subject,
+          target: object,
+          label,
+        });
+      }
+    }
+
+    return { nodes, links };
   }
 
-  expandNeighbors(node: cytoscape.NodeSingular) {
-    const neighbors = node.neighborhood().nodes();
-    neighbors.forEach(neighbor => {
-      neighbor.style('background-color', '#ff0'); // Highlight neighbors
-    });
+  async getNodeAttributes(nodeId: string): Promise<{ [key: string]: string }> {
+    const attributes: { [key: string]: string } = {};
+    for await (const quad of this.plugin.rdfStore.getQuads(nodeId, null, null, null)) {
+      if (quad.object.termType === 'Literal') {
+        attributes[quad.predicate.value.split('/').pop() || quad.predicate.value] = quad.object.value;
+      }
+    }
+    return attributes;
+  }
+
+  async getNeighbors(nodeId: string): Promise<any[]> {
+    const elements: any[] = [];
+    const seenNodes = new Set<string>();
+    for await (const quad of this.plugin.rdfStore.getQuads(nodeId, null, null, null)) {
+      const object = quad.object.value;
+      if (quad.object.termType === 'NamedNode' && !seenNodes.has(object)) {
+        seenNodes.add(object);
+        const label = object.split('/').pop() || object;
+        const attributes = await this.getNodeAttributes(object);
+        elements.push({
+          data: { id: object, label, attributes },
+        });
+      }
+      const predicate = quad.predicate.value;
+      if (quad.object.termType === 'NamedNode') {
+        const label = predicate.split('/').pop() || predicate;
+        elements.push({
+          data: {
+            id: `${nodeId}-${predicate}-${object}`,
+            source: nodeId,
+            target: object,
+            label,
+          },
+        });
+      }
+    }
+    return elements;
   }
 
   async onClose() {
     if (this.cy) {
       this.cy.destroy();
+    }
+    if (this.forceGraph) {
+      this.forceGraph = null;
     }
   }
 }

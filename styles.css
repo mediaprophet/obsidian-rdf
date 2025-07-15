@@ -1,22 +1,135 @@
+/* Semantic Weaver plugin styles */
+.semantic-weaver-modal,
 .modal {
+  background: var(--background-primary, #fff);
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 6px;
   padding: 20px;
+  max-width: 600px;
+  margin: 20px auto;
 }
-.modal h2, .modal h3 {
+
+.semantic-weaver-modal h2,
+.modal h2,
+.semantic-weaver-modal h3,
+.modal h3 {
   margin-bottom: 20px;
+  color: var(--text-normal, #333);
 }
+
+.semantic-weaver-setting,
 .setting-item {
   margin-bottom: 15px;
 }
+
+.semantic-weaver-input,
+.semantic-weaver-textarea,
 textarea {
   width: 100%;
-  height: 150px;
-  font-family: monospace;
+  padding: 8px;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  background: var(--background-secondary, #f9f9f9);
+  color: var(--text-normal, #333);
+  font-size: 14px;
 }
+
+.semantic-weaver-textarea,
+textarea {
+  min-height: 150px;
+  resize: vertical;
+  font-family: var(--font-monospace, monospace);
+}
+
+.semantic-weaver-button-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.semantic-weaver-button-group .button-cta {
+  background: var(--interactive-accent, #7d5bed);
+  color: var(--text-on-accent, #fff);
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.semantic-weaver-button-group .button-cta:hover {
+  background: var(--interactive-accent-hover, #6a4ed6);
+}
+
+.semantic-weaver-validation {
+  margin-top: 10px;
+  color: var(--text-error, #d33);
+  font-size: 12px;
+}
+
 .rdf-graph {
   width: 100%;
   height: 600px;
 }
+
 .mermaid-diagram svg {
-  background-color: var(--background-primary);
-  fill: var(--text-normal);
+  background-color: var(--background-primary, #fff);
+  fill: var(--text-normal, #333);
+}
+
+.semantic-weaver-toggle-button {
+  background: var(--background-secondary, #f9f9f9);
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-normal, #333);
+}
+
+.semantic-weaver-toggle-button:hover {
+  background: var(--background-modifier-hover, #e8e8e8);
+}
+
+/* Dark theme support */
+body.theme-dark .semantic-weaver-modal,
+body.theme-dark .modal {
+  background: var(--background-primary, #2f2f2f);
+  border-color: var(--border-color, #555);
+}
+
+body.theme-dark .semantic-weaver-modal h2,
+body.theme-dark .modal h2,
+body.theme-dark .semantic-weaver-modal h3,
+body.theme-dark .modal h3 {
+  color: var(--text-normal, #dcdcdc);
+}
+
+body.theme-dark .semantic-weaver-input,
+body.theme-dark .semantic-weaver-textarea,
+body.theme-dark textarea {
+  background: var(--background-secondary, #3a3a3a);
+  color: var(--text-normal, #dcdcdc);
+  border-color: var(--border-color, #555);
+}
+
+body.theme-dark .semantic-weaver-button-group .button-cta {
+  background: var(--interactive-accent, #7d5bed);
+}
+
+body.theme-dark .semantic-weaver-button-group .button-cta:hover {
+  background: var(--interactive-accent-hover, #6a4ed6);
+}
+
+body.theme-dark .semantic-weaver-toggle-button {
+  background: var(--background-secondary, #3a3a3a);
+  color: var(--text-normal, #dcdcdc);
+  border-color: var(--border-color, #555);
+}
+
+body.theme-dark .semantic-weaver-toggle-button:hover {
+  background: var(--background-modifier-hover, #444);
+}
+
+body.theme-dark .mermaid-diagram svg {
+  background-color: var(--background-primary, #2f2f2f);
+  fill: var(--text-normal, #dcdcdc);
 }
