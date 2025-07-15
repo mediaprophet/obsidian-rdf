@@ -1,9 +1,10 @@
-import { Plugin, Notice } from 'obsidian';
+import { Plugin, Notice, TFolder } from 'obsidian';
 import * as N3 from 'n3';
+import * as path from 'path';
+import * as fs from 'fs';
 import { RDFPluginSettings, DEFAULT_SETTINGS, RDFPluginSettingTab } from './settings/RDFPluginSettings';
 import { RDFGraphView } from './views/RDFGraphView';
-import { loadOntology, loadProjectTTL, storeQuad, parseCML, canvasToTurtle, exportCanvasToRDF, fetchOntologyTerms, extractCMLDMetadata, updateCMLDMetadata, deployToGitHub, generateProjectTTL, copyDocs, copyJsFiles } from './utils/RDFUtils';
-import * as path from 'path';
+import { loadOntology, loadProjectTTL, loadExportedPredicates, storeQuad, parseCML, canvasToTurtle, exportCanvasToRDF, fetchOntologyTerms, extractCMLDMetadata, updateCMLDMetadata, deployToGitHub, generateProjectTTL, copyDocs, copyJsFiles } from './utils/RDFUtils';
 
 const { namedNode, literal, quad } = N3.DataFactory;
 
@@ -14,6 +15,8 @@ export default class RDFPlugin extends Plugin {
 
   async onload() {
     await this.loadSettings();
+    await this.importDemoDocs();
+
     this.rdfStore = new N3.Store();
     this.ontologyTtl = await loadOntology(this.app);
     try {
@@ -35,6 +38,12 @@ export default class RDFPlugin extends Plugin {
       await loadProjectTTL(this.app, this.rdfStore);
     } catch (error) {
       new Notice(`Failed to load project TTL: ${error.message}. Skipping project TTL.`);
+      console.error(error);
+    }
+    try {
+      await loadExportedPredicates(this.app, this.rdfStore, this.settings.exportDir || path.join(this.app.vault.adapter.basePath, 'exports').replace(/\\/g, '/'));
+    } catch (error) {
+      new Notice(`Failed to load exported predicates: ${error.message}.`);
       console.error(error);
     }
 
@@ -172,7 +181,7 @@ export default class RDFPlugin extends Plugin {
     });
 
     this.addSettingTab(new RDFPluginSettingTab(this.app, this));
-    this.registerView('rdf-graph', (leaf) => new RDFGraphView(this.app, this));
+    this.registerView('rdf-graph', (leaf) => new RDFGraphView(leaf, this));
   }
 
   async loadSettings() {
@@ -181,6 +190,79 @@ export default class RDFPlugin extends Plugin {
 
   async saveSettings() {
     await this.saveData(this.settings);
+  }
+
+  async importDemoDocs() {
+    const demoFolderPath = 'semantic-weaver';
+    const demoFolder = this.app.vault.getAbstractFileByPath(demoFolderPath);
+    
+    if (!(demoFolder instanceof TFolder)) {
+      await this.app.vault.createFolder(demoFolderPath);
+      new Notice('Created semantic-weaver folder for demo docs.');
+    }
+
+    const demoFiles = [
+      { 
+        path: `${demoFolderPath}/example-canvas.canvas`, 
+        content: JSON.stringify({
+          nodes: [
+            { id: 'node1', type: 'http://example.org/doc/Document', properties: { category: 'Example', author: 'http://example.org/Person/John' }, x: 0, y: 0, width: 200, height: 100 },
+            { id: 'node2', type: 'http://example.org/doc/Document', properties: { category: 'Sample', author: 'http://example.org/Person/Jane' }, x: 300, y: 0, width: 200, height: 100 }
+          ],
+          edges: [
+            { id: 'edge1', fromNode: 'node1', toNode: 'node2', rdfPredicate: 'http://example.org/relatedTo' }
+          ]
+        }) 
+      },
+      { 
+        path: `${demoFolderPath}/example-note.md`, 
+        content: `
+# Example Note
+@doc [ExampleNote] category: "Documentation"; author: [John]; created: "2025-07-15".
+This is an example note with CMLD metadata.
+` 
+      },
+      { 
+        path: `${demoFolderPath}/semantic-weaver-functional-spec.md`, 
+        content: await fs.promises.readFile(
+          path.join(this.app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver', 'templates', 'semantic-weaver-functional-spec.md').replace(/\\/g, '/'), 
+          'utf-8'
+        ).catch(() => '') 
+      },
+      { 
+        path: `${demoFolderPath}/SemanticSyncGuide.json`, 
+        content: await fs.promises.readFile(
+          path.join(this.app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver', 'templates', 'SemanticSyncGuide.json').replace(/\\/g, '/'), 
+          'utf-8'
+        ).catch(() => '') 
+      }
+    ];
+
+    for (const file of demoFiles) {
+      if (!this.app.vault.getAbstractFileByPath(file.path) && file.content) {
+        await this.app.vault.create(file.path, file.content);
+        new Notice(`Created demo file: ${file.path}`);
+      }
+    }
+
+    // Copy ontology.ttl and project.ttl from plugin templates if they don't exist
+    const pluginDir = path.join(this.app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver').replace(/\\/g, '/');
+    const ontologySrc = path.join(pluginDir, 'templates', 'ontology.ttl').replace(/\\/g, '/');
+    const projectSrc = path.join(pluginDir, 'templates', 'project.ttl').replace(/\\/g, '/');
+    const ontologyDest = `${demoFolderPath}/ontology.ttl`;
+    const projectDest = `${demoFolderPath}/project.ttl`;
+
+    if (!this.app.vault.getAbstractFileByPath(ontologyDest) && fs.existsSync(ontologySrc)) {
+      const content = await fs.promises.readFile(ontologySrc, 'utf-8');
+      await this.app.vault.create(ontologyDest, content);
+      new Notice('Created demo ontology.ttl in semantic-weaver folder.');
+    }
+
+    if (!this.app.vault.getAbstractFileByPath(projectDest) && fs.existsSync(projectSrc)) {
+      const content = await fs.promises.readFile(projectSrc, 'utf-8');
+      await this.app.vault.create(projectDest, content);
+      new Notice('Created demo project.ttl in semantic-weaver folder.');
+    }
   }
 
   async updateCanvasNode(file: TFile, nodeId: string, type: string, properties: { [key: string]: string }) {
@@ -251,7 +333,7 @@ export default class RDFPlugin extends Plugin {
   async exportDocs() {
     const { exportDir, includeTests, githubRepo, siteUrl } = this.settings;
     const pluginDir = path.join(this.app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver').replace(/\\/g, '/');
-    await copyDocs(this, pluginDir, exportDir, includeTests);
+    await copyDocs(this, pluginDir, exportDir);
     await copyJsFiles(this, pluginDir, exportDir);
     const ontologyPath = path.join(exportDir, 'docs', 'ontology.ttl').replace(/\\/g, '/');
     const projectTtl = await generateProjectTTL(this);

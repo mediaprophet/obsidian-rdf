@@ -8,7 +8,7 @@ import { RDFPlugin } from '../main';
 const { namedNode, literal, quad } = N3.DataFactory;
 
 export async function loadOntology(app: App): Promise<string> {
-  const ontologyPath = path.join(app.vault.adapter.basePath, 'ontology', 'ontology.ttl').replace(/\\/g, '/');
+  const ontologyPath = path.join(app.vault.adapter.basePath, 'semantic-weaver', 'ontology.ttl').replace(/\\/g, '/');
   try {
     return await fs.promises.readFile(ontologyPath, 'utf-8');
   } catch {
@@ -20,6 +20,7 @@ export async function loadOntology(app: App): Promise<string> {
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix oa: <http://www.w3.org/ns/oa#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix schema: <http://schema.org/> .
 
 ex:similarTo a owl:ObjectProperty ;
   rdfs:label "Similar To" .
@@ -59,7 +60,8 @@ doc:Document a rdfs:Class ;
   rdfs:label "Document" .
 
 ex:Person a rdfs:Class ;
-  rdfs:label "Person" .`;
+  rdfs:label "Person" .
+`;
     await fs.promises.mkdir(path.dirname(ontologyPath), { recursive: true });
     await fs.promises.writeFile(ontologyPath, defaultTtl);
     return defaultTtl;
@@ -67,7 +69,7 @@ ex:Person a rdfs:Class ;
 }
 
 export async function loadProjectTTL(app: App, store: N3.Store): Promise<void> {
-  const projectPath = path.join(app.vault.adapter.basePath, 'ontology', 'project.ttl').replace(/\\/g, '/');
+  const projectPath = path.join(app.vault.adapter.basePath, 'semantic-weaver', 'project.ttl').replace(/\\/g, '/');
   if (await fs.promises.access(projectPath).then(() => true).catch(() => false)) {
     try {
       const content = await fs.promises.readFile(projectPath, 'utf-8');
@@ -84,6 +86,30 @@ export async function loadProjectTTL(app: App, store: N3.Store): Promise<void> {
     } catch (error) {
       throw new Error(`Could not load project TTL from ${projectPath}: ${error.message}`);
     }
+  }
+}
+
+export async function loadExportedPredicates(app: App, store: N3.Store, exportDir: string): Promise<void> {
+  const canvasDir = path.join(exportDir, 'docs', 'canvas').replace(/\\/g, '/');
+  try {
+    const files = await fs.promises.readdir(canvasDir);
+    for (const file of files.filter(f => f.endsWith('.ttl'))) {
+      const content = await fs.promises.readFile(path.join(canvasDir, file), 'utf-8');
+      const parser = new N3.Parser({ format: 'Turtle' });
+      const quads = await new Promise<N3.Quad[]>((resolve, reject) => {
+        const quads: N3.Quad[] = [];
+        parser.parse(content, (error, quad, prefixes) => {
+          if (error) reject(error);
+          if (quad) quads.push(quad);
+          else resolve(quads);
+        });
+      });
+      await store.addQuads(quads);
+      new Notice(`Loaded predicates from exported file: ${file}`);
+    }
+  } catch (error) {
+    new Notice(`Failed to load exported predicates: ${error.message}`);
+    console.error(error);
   }
 }
 
@@ -151,6 +177,15 @@ export async function exportCanvasToRDF(plugin: RDFPlugin, canvasFile: TFile, fo
     const nodeUri = node.url || `${plugin.settings.namespaces.ex}${node.id}`;
     const nodeQuads = store.getQuads(namedNode(nodeUri), null, null);
     quads.push(...nodeQuads);
+    // Add fragment-specific metadata if node.url contains a fragment
+    if (node.url && node.url.includes('#')) {
+      const fragment = node.url.split('#')[1];
+      quads.push(quad(
+        namedNode(node.url),
+        namedNode('http://schema.org/section'),
+        literal(fragment)
+      ));
+    }
   }
   for (const edge of canvasData.edges) {
     const fromNode = canvasData.nodes.find(n => n.id === edge.fromNode);
@@ -324,7 +359,9 @@ export async function copyDocs(plugin: RDFPlugin, pluginDir: string, exportDir: 
     'tutorials/faceted-search.md',
     'tutorials/deployment.md',
     'tutorials/rdf-graph.md',
-    'github-action.yml'
+    'github-action.yml',
+    'semantic-weaver-functional-spec.md',
+    'server.js'
   ];
   for (const file of templateFiles) {
     const srcPath = path.join(pluginDir, 'templates', file).replace(/\\/g, '/');

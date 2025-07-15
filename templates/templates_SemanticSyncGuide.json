@@ -1,0 +1,155 @@
+{
+  "title": "SemanticSyncGuide",
+  "version": "1.0.0",
+  "description": "Instructions for AI agents (e.g., Grok, OpenAI, Gemini, Copilot, Ollama) to transform, author, or refactor documents into Semantic Weaver's CML/CMLD format for Obsidian.",
+  "plugin": {
+    "name": "Semantic Weaver",
+    "repository": "https://github.com/mediaprophet/obsidian-semantic-weaver",
+    "features": [
+      "RDF-based ontology management",
+      "Semantic canvas editing with RDF triples",
+      "SPARQL querying",
+      "CML/CMLD metadata for Markdown",
+      "MkDocs export with GitHub deployment"
+    ],
+    "dependencies": {
+      "n3": "^1.17.2",
+      "cytoscape": "^3.30.2",
+      "fs": "built-in",
+      "child_process": "built-in"
+    },
+    "platform": "Desktop-only",
+    "icons": "Obsidian Lucide"
+  },
+  "instructions": {
+    "target_format": {
+      "name": "CML/CMLD",
+      "description": "Custom Markup Language (CML) and CML for Documentation (CMLD) for annotating Markdown with RDF metadata using @doc tags.",
+      "structure": {
+        "cml": {
+          "syntax": "[subject] predicate: object; predicate: object",
+          "example": "[Note1] related: [Note2]; category: \"Tutorial\"",
+          "namespace": "ex: (http://example.org/)"
+        },
+        "cmld": {
+          "syntax": "@doc [subject] predicate: object; predicate: object",
+          "example": "@doc [ExampleNote] category: \"Documentation\"; author: [John]; created: \"2025-07-15\"",
+          "namespace": "doc: (http://example.org/doc/)"
+        },
+        "notes": "Objects can be URIs ([John] resolves to http://example.org/Person/John) or literals (\"Tutorial\"). Use spaces in subjects/objects are replaced with underscores in URIs."
+      },
+      "ontology": {
+        "file": "semantic-weaver/ontology.ttl",
+        "description": "Turtle file defining predicates (e.g., doc:category, ex:relatedTo) and classes (e.g., doc:Document, ex:Person).",
+        "example": "@prefix doc: <http://example.org/doc/> .\ndoc:category a rdf:Property ;\n  rdfs:label \"Category\" ;\n  rdfs:domain doc:Document ;\n  rdfs:range rdfs:Literal ."
+      }
+    },
+    "transformation_rules": [
+      {
+        "source_format": "Markdown (.md, .mdx)",
+        "instructions": [
+          "Identify metadata (e.g., YAML frontmatter, inline tags) or content structure.",
+          "Convert metadata to CMLD format with @doc tag at the start or end of the document.",
+          "Map common metadata fields to ontology predicates (e.g., YAML 'category' to doc:category, 'author' to doc:author).",
+          "Wrap references to other documents or entities in square brackets (e.g., [Note2]).",
+          "Ensure spaces in subjects/objects are replaced with underscores for URI generation."
+        ],
+        "example": {
+          "input": "---\ntitle: Example Note\ncategory: Documentation\nauthor: John\n---\nThis is a note.",
+          "output": "# Example Note\n@doc [ExampleNote] category: \"Documentation\"; author: [John]; created: \"2025-07-15\".\nThis is a note."
+        }
+      },
+      {
+        "source_format": "RDF (Turtle, JSON-LD)",
+        "instructions": [
+          "Parse RDF triples to identify subjects, predicates, and objects.",
+          "Map subjects to CML subjects (e.g., http://example.org/doc/ExampleNote to [ExampleNote]).",
+          "Map predicates to ontology terms (e.g., http://example.org/doc/category to doc:category).",
+          "Convert objects to literals (wrap in quotes) or URIs (wrap in square brackets).",
+          "Group triples by subject and format as @doc [subject] predicate: object; ...",
+          "Place CMLD block at the start or end of a new Markdown file."
+        ],
+        "example": {
+          "input": "@prefix doc: <http://example.org/doc/> .\n<http://example.org/doc/ExampleNote> doc:category \"Documentation\" ; doc:author <http://example.org/Person/John> .",
+          "output": "@doc [ExampleNote] category: \"Documentation\"; author: [John]."
+        }
+      },
+      {
+        "source_format": "XML",
+        "instructions": [
+          "Parse XML elements/attributes to identify metadata or relationships.",
+          "Map elements to ontology predicates (e.g., <category> to doc:category, <author> to doc:author).",
+          "Convert element content or attributes to literals (quote strings) or URIs (square brackets for references).",
+          "Create a Markdown file with @doc block for metadata.",
+          "Preserve non-metadata content as Markdown text."
+        ],
+        "example": {
+          "input": "<document>\n  <title>Example Note</title>\n  <category>Documentation</category>\n  <author>John</author>\n</document>",
+          "output": "# Example Note\n@doc [ExampleNote] category: \"Documentation\"; author: [John]."
+        }
+      },
+      {
+        "source_format": "Other (e.g., JSON, CSV)",
+        "instructions": [
+          "Extract structured data (e.g., JSON objects, CSV rows) as metadata or relationships.",
+          "Map keys/columns to ontology predicates (e.g., 'category' to doc:category).",
+          "Convert values to literals (quote strings) or URIs (square brackets for references).",
+          "Create a Markdown file with @doc block for metadata.",
+          "Include non-metadata content as Markdown text if applicable."
+        ],
+        "example": {
+          "input": "{\"title\": \"Example Note\", \"category\": \"Documentation\", \"author\": \"John\"}",
+          "output": "# Example Note\n@doc [ExampleNote] category: \"Documentation\"; author: [John]."
+        }
+      }
+    ],
+    "canvas_conversion": {
+      "description": "Convert documents to Obsidian canvas files with RDF-annotated nodes and edges.",
+      "instructions": [
+        "Identify entities (e.g., documents, people) as nodes with types (e.g., doc:Document, ex:Person).",
+        "Map relationships to edges with predicates (e.g., ex:relatedTo).",
+        "Create a .canvas file with JSON structure: nodes array (id, type, properties, x, y, width, height) and edges array (id, fromNode, toNode, rdfPredicate).",
+        "Use properties for metadata (e.g., { category: \"Documentation\" })."
+      ],
+      "example": {
+        "input": "@doc [Note1] category: \"Documentation\"; related: [Note2].",
+        "output": {
+          "nodes": [
+            { "id": "note1", "type": "http://example.org/doc/Document", "properties": { "category": "Documentation" }, "x": 0, "y": 0, "width": 200, "height": 100 },
+            { "id": "note2", "type": "http://example.org/doc/Document", "properties": {}, "x": 300, "y": 0, "width": 200, "height": 100 }
+          ],
+          "edges": [
+            { "id": "edge1", "fromNode": "note1", "toNode": "note2", "rdfPredicate": "http://example.org/relatedTo" }
+          ]
+        }
+      }
+    },
+    "validation": {
+      "ontology_file": "semantic-weaver/ontology.ttl",
+      "predicates": [
+        "doc:category",
+        "doc:author",
+        "doc:related",
+        "doc:created",
+        "doc:version",
+        "ex:similarTo",
+        "ex:unRelatedTo",
+        "ex:differentTo"
+      ],
+      "classes": [
+        "doc:Document",
+        "ex:Person"
+      ],
+      "instructions": [
+        "Ensure predicates and classes match those in ontology.ttl.",
+        "Validate URIs against namespaces (ex:, doc:).",
+        "Check for valid CML/CMLD syntax (@doc [subject] predicate: object; ...)."
+      ]
+    },
+    "notes": [
+      "Use semantic-weaver/semantic-weaver-functional-spec.md for detailed plugin usage.",
+      "Ensure output files are placed in the Obsidian vault, ideally in semantic-weaver/ folder.",
+      "For RDF outputs, use Turtle or JSON-LD as supported by the plugin."
+    ]
+  }
+}

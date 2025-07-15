@@ -1,0 +1,10 @@
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+@prefix schema: <http://schema.org/> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+
+<http://example.org/project/DemoVault> a doap:Project, schema:SoftwareApplication ;
+  dc:title "DemoVault" ;
+  dc:creator "Semantic Weaver" ;
+  dc:date "2025-07-15" ;
+  doap:homepage "http://example.org" ;
+  doap:repository "https://github.com/mediaprophet/obsidian-semantic-weaver" .
