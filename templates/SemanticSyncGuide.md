@@ -64,15 +64,16 @@ Context Markup Language (CML) and Context Markup Language for Documentation (CML
 - **Steps**:
   1. Identify key entities (e.g., documents, people, locations) and their relationships.
   2. Detect potential ambiguities (e.g., "Washington" as state, person, or city) and resolve using context (e.g., document content, regional references).
-  3. Map entities to ontology terms (e.g., `doc:Document`, `ex:Person`) from `semantic-weaver/ontology.ttl` or `semantic-weaver/ontology/*.md`.
+  3. Map entities to ontology terms (e.g., `doc:Document`, `ex:Person`) from `templates/ontology.ttl` or `templates/ontology/*.md`.
   4. Generate CML for relationships and disambiguation (e.g., `[Washington] ex:refersTo: [ex:State_Washington]`).
   5. Generate CMLD for document metadata (e.g., `@doc [Note] category: "Documentation"`).
   6. Append annotations to the Markdown file.
+  7. See `templates/tutorials/authoring-cml-cmld.md` for detailed authoring instructions.
 
 ### 2. Markdown-LD
 
 #### Description
-Markdown-LD syntax is used to define RDF ontologies in `semantic-weaver/ontology/*.md` files, based on schema.org and RDFa, as described at https://blog.sparna.fr/post/semantic-markdown.
+Markdown-LD syntax is used to define RDF ontologies in `templates/ontology/*.md` files, based on schema.org and RDFa, as described at https://blog.sparna.fr/post/semantic-markdown.
 
 #### Syntax
 - **Description**: Uses inline attributes in square brackets with `typeof` and property annotations, and footnote-style namespace declarations.
@@ -90,11 +91,11 @@ Markdown-LD syntax is used to define RDF ontologies in `semantic-weaver/ontology
   - Attributes are specified in curly braces, e.g., `{typeof=rdfs:Class}`.
   - Multiple properties are space-separated, e.g., `{typeof=rdfs:Property rdfs:label="Name"}`.
   - Use `schema.org`, `rdfs`, or `owl` vocabularies for types and properties.
-  - Save files in `semantic-weaver/ontology/` with `.md` extension.
+  - Save files in `templates/ontology/` with `.md` extension.
 
 #### Conversion
 - **Input**: Ontology definitions in plain text, Turtle, or other RDF formats.
-- **Output**: Markdown file with Markdown-LD syntax, saved in `semantic-weaver/ontology/`.
+- **Output**: Markdown file with Markdown-LD syntax, saved in `templates/ontology/`.
 - **Example**:
   - **Input**:
     ```turtle
@@ -110,14 +111,15 @@ Markdown-LD syntax is used to define RDF ontologies in `semantic-weaver/ontology
     ```
 - **Steps**:
   1. Identify classes, properties, and relationships in the input ontology.
-  2. Map to `schema.org`, `rdfs`, or `owl` vocabularies (refer to `semantic-weaver/ontology.ttl`).
+  2. Map to `schema.org`, `rdfs`, or `owl` vocabularies (refer to `templates/ontology.ttl`).
   3. Define namespaces at the top of the Markdown file (e.g., `[schema]: http://schema.org`).
   4. Convert classes to `[Entity]{typeof=rdfs:Class rdfs:label="Label"}`.
   5. Convert properties to `[Property]{typeof=rdfs:Property schema:domainIncludes=[Class]; schema:rangeIncludes=[Type]; rdfs:label="Label"}`.
-  6. Save as a `.md` file in `semantic-weaver/ontology/`, e.g., `my-ontology.md`.
+  6. Save as a `.md` file in `templates/ontology/`, e.g., `my-ontology.md`.
 
 ## References
-- **Ontology**: `semantic-weaver/ontology.ttl` and `semantic-weaver/ontology/*.md`
-- **CML Docs**: https://mediaprophet.github.io/init-draft-standards-wip/cml/
-- **CMLD Docs**: https://mediaprophet.github.io/init-draft-standards-wip/CMLD/
-- **Markdown-LD Docs**: https://blog.sparna.fr/post/semantic-markdown
+- **Ontology**: `templates/ontology.ttl` and `templates/ontology/*.md`
+- **Tutorials**: `templates/tutorials/*`
+- **CML**: [https://mediaprophet.github.io/init-draft-standards-wip/cml/](https://mediaprophet.github.io/init-draft-standards-wip/cml/)
+- **CMLD**: [https://mediaprophet.github.io/init-draft-standards-wip/CMLD/](https://mediaprophet.github.io/init-draft-standards-wip/CMLD/)
+- **Markdown-LD**: [https://blog.sparna.fr/post/semantic-markdown](https://blog.sparna.fr/post/semantic-markdown)

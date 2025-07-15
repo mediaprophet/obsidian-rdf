@@ -9,7 +9,7 @@ import { RDFPlugin } from '../main';
 const { namedNode, literal, quad } = N3.DataFactory;
 
 export async function loadOntology(app: App): Promise<string> {
-  const ontologyPath = path.join(app.vault.adapter.basePath, 'semantic-weaver', 'ontology.ttl').replace(/\\/g, '/');
+  const ontologyPath = path.join(app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver', 'templates', 'ontology.ttl').replace(/\\/g, '/');
   try {
     return await fs.promises.readFile(ontologyPath, 'utf-8');
   } catch {
@@ -31,6 +31,11 @@ ex:unRelatedTo a owl:ObjectProperty ;
 
 ex:differentTo a owl:ObjectProperty ;
   rdfs:label "Different To" .
+
+ex:refersTo a rdfs:Property ;
+  rdfs:label "Refers To" ;
+  schema:domainIncludes rdfs:Resource ;
+  schema:rangeIncludes rdfs:Resource .
 
 doc:category a rdf:Property ;
   rdfs:label "Category" ;
@@ -70,7 +75,7 @@ ex:Person a rdfs:Class ;
 }
 
 export async function loadProjectTTL(app: App, store: N3.Store): Promise<void> {
-  const projectPath = path.join(app.vault.adapter.basePath, 'semantic-weaver', 'project.ttl').replace(/\\/g, '/');
+  const projectPath = path.join(app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver', 'templates', 'project.ttl').replace(/\\/g, '/');
   if (await fs.promises.access(projectPath).then(() => true).catch(() => false)) {
     try {
       const content = await fs.promises.readFile(projectPath, 'utf-8');
@@ -91,7 +96,7 @@ export async function loadProjectTTL(app: App, store: N3.Store): Promise<void> {
 }
 
 export async function loadMarkdownOntologies(app: App, store: N3.Store): Promise<void> {
-  const ontologyFolder = path.join(app.vault.adapter.basePath, 'semantic-weaver', 'ontology').replace(/\\/g, '/');
+  const ontologyFolder = path.join(app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver', 'templates', 'ontology').replace(/\\/g, '/');
   try {
     await fs.promises.access(ontologyFolder);
     const files = await fs.promises.readdir(ontologyFolder);
@@ -119,6 +124,30 @@ export async function loadMarkdownOntologies(app: App, store: N3.Store): Promise
       console.error(error);
     }
   }
+}
+
+export async function canvasToMermaid(plugin: RDFPlugin, canvasData: any): Promise<string> {
+  let mermaidCode = 'graph TD;\n';
+  const nodes = new Set<string>();
+  for (const edge of canvasData.edges) {
+    const fromNode = canvasData.nodes.find(n => n.id === edge.fromNode);
+    const toNode = canvasData.nodes.find(n => n.id === edge.toNode);
+    if (fromNode && toNode) {
+      const fromId = fromNode.url ? fromNode.url.split('/').pop().replace(/[^a-zA-Z0-9_]/g, '_') : edge.fromNode;
+      const toId = toNode.url ? toNode.url.split('/').pop().replace(/[^a-zA-Z0-9_]/g, '_') : edge.toNode;
+      nodes.add(fromId);
+      nodes.add(toId);
+      const predicate = edge.rdfPredicate ? edge.rdfPredicate.split('/').pop() : 'relatedTo';
+      mermaidCode += `  ${fromId}-->${toId}["${predicate}"];\n`;
+    }
+  }
+  for (const node of canvasData.nodes) {
+    const nodeId = node.url ? node.url.split('/').pop().replace(/[^a-zA-Z0-9_]/g, '_') : node.id;
+    if (nodes.has(nodeId) && node.properties?.category) {
+      mermaidCode += `  ${nodeId}["${nodeId}<br>${node.properties.category}"];\n`;
+    }
+  }
+  return mermaidCode;
 }
 
 export async function loadExportedPredicates(app: App, store: N3.Store, exportDir: string): Promise<void> {
@@ -398,7 +427,10 @@ export async function copyDocs(plugin: RDFPlugin, pluginDir: string, exportDir: 
     'github-action.yml',
     'semantic-weaver-functional-spec.md',
     'server.js',
-    'SemanticSyncGuide.md'
+    'SemanticSyncGuide.md',
+    'SemanticSyncGuide.json',
+    'example-note.md',
+    'example-canvas.canvas'
   ];
   for (const file of templateFiles) {
     const srcPath = path.join(pluginDir, 'templates', file).replace(/\\/g, '/');

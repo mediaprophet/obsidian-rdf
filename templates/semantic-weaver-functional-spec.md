@@ -4,7 +4,7 @@
 
 ## Overview
 
-**Semantic Weaver** is an Obsidian plugin for RDF-based ontology management, semantic canvas editing, SPARQL querying, and exporting documentation to MkDocs with GitHub deployment. It enables users to annotate notes and canvases with RDF metadata using Context Markup Language (CML) and Context Markup Language for Documentation (CMLD), visualize RDF graphs, query data with SPARQL, and generate semantic documentation. This document serves as both a functional specification and a tutorial, using demo files in the `semantic-weaver` folder.
+**Semantic Weaver** is an Obsidian plugin for RDF-based ontology management, semantic canvas editing, SPARQL querying, Mermaid diagram visualization, and exporting documentation to MkDocs with GitHub deployment. It enables users to annotate notes and canvases with RDF metadata using Context Markup Language (CML) and Context Markup Language for Documentation (CMLD), visualize RDF graphs and Mermaid diagrams, query data with SPARQL, and generate semantic documentation. This document serves as both a functional specification and a tutorial, using demo files in the `templates` folder.
 
 ### Metadata
 - **Category**: Documentation
@@ -16,16 +16,16 @@
 ## Features
 
 ### 1. Ontology Management
-- **Description**: Load and manage RDF ontologies in Turtle format (`ontology.ttl`) and Markdown format (`semantic-weaver/ontology/*.md`) using Markdown-LD syntax.
+- **Description**: Load and manage RDF ontologies in Turtle format (`templates/ontology.ttl`) and Markdown format (`templates/ontology/*.md`) using Markdown-LD syntax.
 - **Functionality**:
   - Define namespaces (e.g., `ex:`, `doc:`) and ontology terms (e.g., `doc:Document`, `ex:Person`) in `ontology.ttl` or `.md` files.
   - Edit Turtle ontologies via **Semantic Weaver: Manage RDF Namespaces and Ontology** ribbon icon.
   - Create Markdown ontologies via **Semantic Weaver: Create Markdown Ontology** ribbon icon.
-  - Automatically loads predicates from exported canvas `.ttl` files in the export directory (`docs/canvas/`) and Markdown ontologies in `semantic-weaver/ontology/`.
+  - Automatically loads predicates from exported canvas `.ttl` files in the export directory (`docs/canvas/`) and Markdown ontologies in `templates/ontology/`.
 - **Tutorial**:
-  1. Open the `semantic-weaver` folder in your vault.
-  2. View `ontology.ttl` or `semantic-weaver/ontology/example-ontology.md` for predefined terms.
-  3. Click the **book-open** ribbon icon to edit `ontology.ttl`.
+  1. Open the `templates` folder in your vault.
+  2. View `ontology.ttl` or `templates/ontology/example-ontology.md` for predefined terms.
+  3. Click the **book-open** ribbon icon to edit `templates/ontology.ttl`.
   4. Click the **file-text** ribbon icon to create a new Markdown ontology (e.g., `new-ontology.md`).
      - Example Markdown-LD syntax:
        ```markdown
@@ -48,7 +48,7 @@
   - Supports fragment identifiers (e.g., `http://example.org/doc/Note#section1`) with `schema:section` metadata in JSON-LD.
 - **Tutorial**:
   1. Enable **Semantic Canvas Mode** in **Settings > Semantic Weaver Settings**.
-  2. Open `semantic-weaver/example-canvas.canvas`.
+  2. Open `templates/example-canvas.canvas`.
   3. Right-click a node (e.g., `node1`) and select **Edit Semantic Node**.
   4. Set `Type` to `http://example.org/doc/Document` and add properties (e.g., `category: Tutorial`).
   5. Set `URL` to `http://example.org/doc/Node1#section1` to include a fragment.
@@ -61,7 +61,7 @@
   - Access via **Run SPARQL Query** in the canvas file context menu.
   - Queries are executed against a temporary `n3` store populated with canvas data.
 - **Tutorial**:
-  1. Open `semantic-weaver/example-canvas.canvas`.
+  1. Open `templates/example-canvas.canvas`.
   2. Right-click and select **Run SPARQL Query**.
   3. Enter the query:
      ```sparql
@@ -85,12 +85,13 @@
   - Edit via **Semantic Weaver: Edit CMLD Metadata** command.
   - Supports URI lookups and wrapping text as CML URIs.
 - **Tutorial**:
-  1. Open `semantic-weaver/example-note.md`.
+  1. Open `templates/example-note.md`.
   2. Note the CMLD metadata: `@doc [ExampleNote] category: "Documentation"; author: [John]; created: "2025-07-15".`.
   3. Add CML for context: `[Washington]{ex:refersTo=ex:State_Washington}` to clarify the entity.
   4. Select text in the editor, right-click, and choose **Wrap as CML URI** to wrap it in square brackets.
   5. Run the **Edit CMLD Metadata** command to modify metadata (e.g., change `category` to `Tutorial`).
   6. Use **Look Up URI** to insert a URI from the ontology (e.g., `http://example.org/Person/John`).
+  7. See `templates/tutorials/authoring-cml-cmld.md` for detailed CML/CMLD authoring guidance.
 
 ### 5. RDF Graph Visualization
 - **Description**: Visualize RDF triples as a graph using Cytoscape.
@@ -102,15 +103,29 @@
   - Self-organize graph with a button or drag nodes manually.
 - **Tutorial**:
   1. Run the **Open RDF Graph View** command.
-  2. View the graph of triples from `example-canvas.canvas`, `ontology.ttl`, and `ontology/example-ontology.md`.
+  2. View the graph of triples from `templates/example-canvas.canvas`, `templates/ontology.ttl`, and `templates/ontology/example-ontology.md`.
   3. Click a node to center the graph and view its RDF attributes (e.g., `ex:refersTo`) in the right panel.
   4. Right-click a node and select **Expand Neighbors** to highlight connected nodes.
   5. Click **Self-Organize Graph** to rearrange the layout.
+  6. See `templates/tutorials/rdf-graph.md` for detailed visualization instructions.
 
-### 6. MkDocs Export and GitHub Deployment
+### 6. Mermaid Diagram Visualization
+- **Description**: Visualize RDF triples from canvas files as Mermaid diagrams (e.g., flowcharts).
+- **Functionality**:
+  - Access via **Semantic Weaver: Open Mermaid Diagram View** command.
+  - Converts canvas nodes and edges to Mermaid syntax, rendering them as interactive flowcharts.
+  - Nodes are labeled with RDF properties (e.g., `doc:category`), and edges use predicates (e.g., `ex:relatedTo`).
+- **Tutorial**:
+  1. Run the **Open Mermaid Diagram View** command.
+  2. Select `templates/example-canvas.canvas` from the dropdown.
+  3. View the rendered flowchart showing `node1` and `node2` connected by `ex:relatedTo`.
+  4. Verify node labels include categories (e.g., `Example`, `Sample`).
+  5. See `templates/tutorials/mermaid-diagrams.md` for detailed Mermaid diagram instructions.
+
+### 7. MkDocs Export and GitHub Deployment
 - **Description**: Export vault data as RDF-enhanced MkDocs documentation, optionally deploying to GitHub.
 - **Functionality**:
-  - Export canvas files as Turtle/JSON-LD, Markdown with CML/CMLD, and ontologies from `semantic-weaver/ontology/` as Turtle/JSON-LD.
+  - Export canvas files as Turtle/JSON-LD, Markdown with CML/CMLD, and ontologies from `templates/ontology/` as Turtle/JSON-LD.
   - Deploy to a GitHub repository for hosting (e.g., GitHub Pages).
   - Supports content negotiation via a sample `server.js` for serving exported files.
 - **Tutorial**:
@@ -137,9 +152,10 @@
      ```
      Access `http://localhost:3000/canvas/example-canvas?format=jsonld` or `http://localhost:3000/ontology/example-ontology?format=ttl`.
   7. If a GitHub repository is configured, the export will push to `https://github.com/username/repository`.
+  8. See `templates/tutorials/deployment.md` for detailed deployment instructions.
 
 ## Demo Files
-The `semantic-weaver` folder contains:
+The `templates` folder contains:
 - **example-canvas.canvas**: A canvas with two nodes (`node1`, `node2`) and an edge (`ex:relatedTo`).
 - **example-note.md**: A Markdown note with CMLD metadata.
 - **ontology.ttl**: Default ontology with `doc:` and `ex:` namespaces.
@@ -148,24 +164,26 @@ The `semantic-weaver` folder contains:
 - **SemanticSyncGuide.json**: Instructions for AI agents to convert documents to CML/CMLD and Markdown-LD, available at `https://github.com/mediaprophet/obsidian-semantic-weaver`.
 - **SemanticSyncGuide.md**: Human-readable version of the sync guide.
 - **ontology/example-ontology.md**: Sample Markdown ontology using Markdown-LD syntax.
+- **tutorials/**: Includes `semantic-canvas.md`, `authoring-cml-cmld.md`, `metadata-ui.md`, `mermaid-diagrams.md`, `faceted-search.md`, `deployment.md`, `rdf-graph.md`.
 
 ## Technical Details
 - **Dependencies**:
   - `n3` (`^1.17.2`): RDF parsing, serialization, and SPARQL querying.
   - `cytoscape` (`^3.30.2`): Graph visualization.
   - `markdown-ld` (`^0.8.0`): Semantic Markdown parsing.
+  - `mermaid` (`^10.9.1`): Mermaid diagram rendering.
   - `fs`, `child_process`: Built-in Node.js modules for file operations and Git deployment.
 - **Platform**: Desktop-only (`isDesktopOnly: true`).
-- **Icons**: Uses Obsidian’s Lucide icons (e.g., `book-open`, `file-text`, `edit`, `link`, `search`).
+- **Icons**: Uses Obsidian’s Lucide icons (e.g., `book-open`, `file-text`, `edit`, `link`, `search`, `diagram`).
 - **GitHub Actions**: Uses Python `rdflib` for RDF validation during deployment.
 
 ## Getting Started
 1. Enable **Semantic Weaver** in **Settings > Community Plugins**.
 2. Configure **Default Export Directory** in **Settings > Semantic Weaver Settings** (e.g., `~/my-docs`).
-3. Create or edit ontologies in `semantic-weaver/ontology/` using the **Create Markdown Ontology** ribbon icon.
+3. Create or edit ontologies in `templates/ontology/` using the **Create Markdown Ontology** ribbon icon.
 4. Run **Semantic Weaver: Export RDF Docs for MkDocs** to create the export directory structure.
-5. Explore the `semantic-weaver` folder for demo files.
-6. Follow the tutorials above to manage ontologies, edit canvases, query data, and export documentation.
+5. Explore the `templates` folder for demo files, including `tutorials/*`.
+6. Follow the tutorials in `templates/tutorials/` to manage ontologies, edit canvases, query data, visualize Mermaid diagrams, and export documentation.
 7. Use `server.js` for local content negotiation testing.
 
 ## Troubleshooting
@@ -173,9 +191,9 @@ The `semantic-weaver` folder contains:
   - **Cause**: Obsidian may hide non-Markdown files like `.ttl` or the folder may not be initialized.
   - **Fix**:
     1. Go to **Settings > Files & Links** and ensure **Detect all file extensions** is enabled.
-    2. Verify `semantic-weaver/ontology/` exists in the vault:
+    2. Verify `templates/ontology/` exists in the vault:
        ```bash
-       dir G:\git\obsidian-rdf\semantic-weaver\ontology
+       dir G:\git\obsidian-rdf\.obsidian\plugins\semantic-weaver\templates\ontology
        ```
     3. Create a Markdown ontology via the **Create Markdown Ontology** ribbon icon.
     4. Restart Obsidian to refresh the file explorer.
@@ -191,7 +209,7 @@ The `semantic-weaver` folder contains:
 - **Markdown-LD Syntax Errors**:
   - **Cause**: Invalid `markdown-ld` syntax in `.md` files.
   - **Fix**:
-    1. Check the syntax in `semantic-weaver/ontology/example-ontology.md`.
+    1. Check the syntax in `templates/ontology/example-ontology.md`.
     2. Use the **Create Markdown Ontology** modal to generate valid syntax.
     3. Refer to https://blog.sparna.fr/post/semantic-markdown for guidance.
 - **CML/CMLD Ambiguity Issues**:
@@ -199,5 +217,12 @@ The `semantic-weaver` folder contains:
   - **Fix**:
     1. Add contextual annotations, e.g., `[Washington]{ex:refersTo=ex:State_Washington}`.
     2. Refer to [CML](https://mediaprophet.github.io/init-draft-standards-wip/cml/) and [CMLD](https://mediaprophet.github.io/init-draft-standards-wip/CMLD/).
+- **Mermaid Diagram Errors**:
+  - Ensure `mermaid` (^10.9.1) is installed:
+    ```bash
+    npm list mermaid
+    ```
+  - Check console (Ctrl+Shift+I) for rendering errors.
+  - Verify `templates/example-canvas.canvas` contains valid RDF data.
 
 For issues, check the repository: [https://github.com/mediaprophet/obsidian-semantic-weaver](https://github.com/mediaprophet/obsidian-semantic-weaver).

@@ -1,0 +1,31 @@
+# Node.js dependencies
+node_modules/
+package-lock.json
+
+# Build artifacts
+main.js
+styles.css
+
+# Temporary and cache files
+*.log
+*.cache
+.DS_Store
+.vscode/
+.idea/
+
+# Export directory (user-specific)
+my-docs/
+docs/
+
+# Test outputs and temporary files
+tests/output/
+*.tmp
+*.bak
+
+# Include essential files
+!README.md
+!manifest.json
+!package.json
+!esbuild.config.mjs
+!templates/
+!semantic-weaver/

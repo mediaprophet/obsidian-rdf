@@ -2,10 +2,12 @@ import { Plugin, Notice, TFolder } from 'obsidian';
 import * as N3 from 'n3';
 import * as path from 'path';
 import * as fs from 'fs';
+import mermaid from 'mermaid';
 import markdownld from 'markdown-ld';
 import { RDFPluginSettings, DEFAULT_SETTINGS, RDFPluginSettingTab } from './settings/RDFPluginSettings';
 import { RDFGraphView } from './views/RDFGraphView';
-import { loadOntology, loadProjectTTL, loadExportedPredicates, storeQuad, parseCML, canvasToTurtle, exportCanvasToRDF, fetchOntologyTerms, extractCMLDMetadata, updateCMLDMetadata, deployToGitHub, generateProjectTTL, copyDocs, copyJsFiles, loadMarkdownOntologies } from './utils/RDFUtils';
+import { MermaidView } from './views/MermaidView';
+import { loadOntology, loadProjectTTL, loadExportedPredicates, storeQuad, parseCML, canvasToTurtle, exportCanvasToRDF, fetchOntologyTerms, extractCMLDMetadata, updateCMLDMetadata, deployToGitHub, generateProjectTTL, copyDocs, copyJsFiles, loadMarkdownOntologies, canvasToMermaid } from './utils/RDFUtils';
 
 const { namedNode, literal, quad } = N3.DataFactory;
 
@@ -17,6 +19,9 @@ export default class RDFPlugin extends Plugin {
   async onload() {
     await this.loadSettings();
     await this.importDemoDocs();
+
+    // Initialize Mermaid.js
+    mermaid.initialize({ startOnLoad: false, theme: 'default' });
 
     this.rdfStore = new N3.Store();
     this.ontologyTtl = await loadOntology(this.app);
@@ -84,7 +89,7 @@ export default class RDFPlugin extends Plugin {
     this.addRibbonIcon('file-text', 'Semantic Weaver: Create Markdown Ontology', () => {
       import('./modals/MarkdownOntologyModal').then(({ MarkdownOntologyModal }) => {
         new MarkdownOntologyModal(this.app, this, async (markdownContent, fileName) => {
-          const ontologyFolder = 'semantic-weaver/ontology';
+          const ontologyFolder = 'templates/ontology';
           const filePath = `${ontologyFolder}/${fileName}.md`;
           await this.app.vault.createFolder(ontologyFolder).catch(() => {});
           await this.app.vault.create(filePath, markdownContent);
@@ -205,8 +210,20 @@ export default class RDFPlugin extends Plugin {
       }
     });
 
+    this.addCommand({
+      id: 'open-mermaid-view',
+      name: 'Semantic Weaver: Open Mermaid Diagram View',
+      callback: () => {
+        this.app.workspace.getLeaf(true).setViewState({
+          type: 'mermaid-view',
+          active: true
+        });
+      }
+    });
+
     this.addSettingTab(new RDFPluginSettingTab(this.app, this));
     this.registerView('rdf-graph', (leaf) => new RDFGraphView(leaf, this));
+    this.registerView('mermaid-view', (leaf) => new MermaidView(leaf, this));
   }
 
   async loadSettings() {
@@ -218,100 +235,54 @@ export default class RDFPlugin extends Plugin {
   }
 
   async importDemoDocs() {
-    const demoFolderPath = 'semantic-weaver';
-    const ontologyFolderPath = `${demoFolderPath}/ontology`;
-    const demoFolder = this.app.vault.getAbstractFileByPath(demoFolderPath);
+    const templatesFolderPath = 'templates';
+    const ontologyFolderPath = `${templatesFolderPath}/ontology`;
+    const tutorialsFolderPath = `${templatesFolderPath}/tutorials`;
+    const pluginDir = path.join(this.app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver').replace(/\\/g, '/');
     
-    if (!(demoFolder instanceof TFolder)) {
-      await this.app.vault.createFolder(demoFolderPath);
-      new Notice('Created semantic-weaver folder for demo docs.');
-    }
+    await this.app.vault.createFolder(templatesFolderPath).catch(() => {});
     await this.app.vault.createFolder(ontologyFolderPath).catch(() => {});
+    await this.app.vault.createFolder(tutorialsFolderPath).catch(() => {});
     
     const demoFiles = [
-      { 
-        path: `${demoFolderPath}/example-canvas.canvas`, 
-        content: JSON.stringify({
-          nodes: [
-            { id: 'node1', type: 'http://example.org/doc/Document', properties: { category: 'Example', author: 'http://example.org/Person/John' }, x: 0, y: 0, width: 200, height: 100 },
-            { id: 'node2', type: 'http://example.org/doc/Document', properties: { category: 'Sample', author: 'http://example.org/Person/Jane' }, x: 300, y: 0, width: 200, height: 100 }
-          ],
-          edges: [
-            { id: 'edge1', fromNode: 'node1', toNode: 'node2', rdfPredicate: 'http://example.org/relatedTo' }
-          ]
-        }) 
-      },
-      { 
-        path: `${demoFolderPath}/example-note.md`, 
-        content: `
-# Example Note
-@doc [ExampleNote] category: "Documentation"; author: [John]; created: "2025-07-15".
-[Washington]{ex:refersTo=ex:State_Washington}
-This is an example note with CMLD metadata, using CML to disambiguate "Washington" as a state.
-See [CML](https://mediaprophet.github.io/init-draft-standards-wip/cml/) and [CMLD](https://mediaprophet.github.io/init-draft-standards-wip/CMLD/) for details.
-` 
-      },
-      { 
-        path: `${demoFolderPath}/semantic-weaver-functional-spec.md`, 
-        content: await fs.promises.readFile(
-          path.join(this.app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver', 'templates', 'semantic-weaver-functional-spec.md').replace(/\\/g, '/'), 
-          'utf-8'
-        ).catch(() => '') 
-      },
-      { 
-        path: `${demoFolderPath}/SemanticSyncGuide.json`, 
-        content: await fs.promises.readFile(
-          path.join(this.app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver', 'templates', 'SemanticSyncGuide.json').replace(/\\/g, '/'), 
-          'utf-8'
-        ).catch(() => '') 
-      },
-      { 
-        path: `${demoFolderPath}/SemanticSyncGuide.md`, 
-        content: await fs.promises.readFile(
-          path.join(this.app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver', 'templates', 'SemanticSyncGuide.md').replace(/\\/g, '/'), 
-          'utf-8'
-        ).catch(() => '') 
-      },
-      { 
-        path: `${ontologyFolderPath}/example-ontology.md`, 
-        content: `
-# Example Ontology
-[schema]: http://schema.org
-[rdfs]: http://www.w3.org/2000/01/rdf-schema#
-[owl]: http://www.w3.org/2002/07/owl#
+      'example-note.md',
+      'example-canvas.canvas',
+      'semantic-weaver-functional-spec.md',
+      'SemanticSyncGuide.json',
+      'SemanticSyncGuide.md',
+      'ontology/example-ontology.md',
+      'ontology.ttl',
+      'project.ttl'
+    ];
 
-[Person]{typeof=schema:Person rdfs:label="Person"}
-[Document]{typeof=schema:Document rdfs:label="Document"}
-[name]{typeof=rdfs:Property schema:domainIncludes=[Person]; schema:rangeIncludes=[schema:Text]; rdfs:label="Name"}
-[author]{typeof=rdfs:Property schema:domainIncludes=[Document]; schema:rangeIncludes=[Person]; rdfs:label="Author"}
-[refersTo]{typeof=rdfs:Property schema:domainIncludes=[rdfs:Resource]; schema:rangeIncludes=[rdfs:Resource]; rdfs:label="Refers To"}
-`
-      }
+    const tutorialFiles = [
+      'tutorials/semantic-canvas.md',
+      'tutorials/authoring-cml-cmld.md',
+      'tutorials/metadata-ui.md',
+      'tutorials/mermaid-diagrams.md',
+      'tutorials/faceted-search.md',
+      'tutorials/deployment.md',
+      'tutorials/rdf-graph.md'
     ];
 
     for (const file of demoFiles) {
-      if (!this.app.vault.getAbstractFileByPath(file.path) && file.content) {
-        await this.app.vault.create(file.path, file.content);
-        new Notice(`Created demo file: ${file.path}`);
+      const srcPath = path.join(pluginDir, 'templates', file).replace(/\\/g, '/');
+      const destPath = path.join(pluginDir, 'templates', file).replace(/\\/g, '/');
+      if (!this.app.vault.getAbstractFileByPath(path.join(templatesFolderPath, file).replace(/\\/g, '/')) && fs.existsSync(srcPath)) {
+        await fs.promises.mkdir(path.dirname(destPath), { recursive: true });
+        await fs.promises.copyFile(srcPath, destPath);
+        new Notice(`Created demo file: ${templatesFolderPath}/${file}`);
       }
     }
 
-    const pluginDir = path.join(this.app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver').replace(/\\/g, '/');
-    const ontologySrc = path.join(pluginDir, 'templates', 'ontology.ttl').replace(/\\/g, '/');
-    const projectSrc = path.join(pluginDir, 'templates', 'project.ttl').replace(/\\/g, '/');
-    const ontologyDest = `${demoFolderPath}/ontology.ttl`;
-    const projectDest = `${demoFolderPath}/project.ttl`;
-
-    if (!this.app.vault.getAbstractFileByPath(ontologyDest) && fs.existsSync(ontologySrc)) {
-      const content = await fs.promises.readFile(ontologySrc, 'utf-8');
-      await this.app.vault.create(ontologyDest, content);
-      new Notice('Created demo ontology.ttl in semantic-weaver folder.');
-    }
-
-    if (!this.app.vault.getAbstractFileByPath(projectDest) && fs.existsSync(projectSrc)) {
-      const content = await fs.promises.readFile(projectSrc, 'utf-8');
-      await this.app.vault.create(projectDest, content);
-      new Notice('Created demo project.ttl in semantic-weaver folder.');
+    for (const file of tutorialFiles) {
+      const srcPath = path.join(pluginDir, 'templates', file).replace(/\\/g, '/');
+      const destPath = path.join(pluginDir, 'templates', file).replace(/\\/g, '/');
+      if (!this.app.vault.getAbstractFileByPath(path.join(templatesFolderPath, file).replace(/\\/g, '/')) && fs.existsSync(srcPath)) {
+        await fs.promises.mkdir(path.dirname(destPath), { recursive: true });
+        await fs.promises.copyFile(srcPath, destPath);
+        new Notice(`Created tutorial file: ${templatesFolderPath}/${file}`);
+      }
     }
   }
 
@@ -401,7 +372,7 @@ See [CML](https://mediaprophet.github.io/init-draft-standards-wip/cml/) and [CML
       await fs.promises.writeFile(turtlePath, turtle);
       await fs.promises.writeFile(jsonldPath, jsonld);
     }
-    const ontologyFolder = path.join(this.app.vault.adapter.basePath, 'semantic-weaver', 'ontology').replace(/\\/g, '/');
+    const ontologyFolder = path.join(pluginDir, 'templates', 'ontology').replace(/\\/g, '/');
     if (await fs.promises.access(ontologyFolder).then(() => true).catch(() => false)) {
       const ontologyFiles = await fs.promises.readdir(ontologyFolder);
       for (const file of ontologyFiles.filter(f => f.endsWith('.md'))) {

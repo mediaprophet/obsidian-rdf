@@ -44,16 +44,17 @@
           "steps": [
             "Identify key entities (e.g., documents, people, locations) and their relationships.",
             "Detect potential ambiguities (e.g., 'Washington' as state, person, or city) and resolve using context (e.g., document content, regional references).",
-            "Map entities to ontology terms (e.g., doc:Document, ex:Person) from semantic-weaver/ontology.ttl or semantic-weaver/ontology/*.md.",
+            "Map entities to ontology terms (e.g., doc:Document, ex:Person) from templates/ontology.ttl or templates/ontology/*.md.",
             "Generate CML for relationships and disambiguation (e.g., [Washington] ex:refersTo: [ex:State_Washington]).",
             "Generate CMLD for document metadata (e.g., @doc [Note] category: \"Documentation\").",
-            "Append annotations to the Markdown file."
+            "Append annotations to the Markdown file.",
+            "See templates/tutorials/authoring-cml-cmld.md for detailed authoring instructions."
           ]
         }
       },
       {
         "name": "Markdown-LD",
-        "description": "Markdown-LD syntax for defining RDF ontologies in semantic-weaver/ontology/*.md files, based on schema.org and RDFa.",
+        "description": "Markdown-LD syntax for defining RDF ontologies in templates/ontology/*.md files, based on schema.org and RDFa.",
         "syntax": {
           "description": "Uses inline attributes in square brackets with typeof and property annotations, and footnote-style namespace declarations.",
           "pattern": "[Entity]{typeof=type property=value} or [prefix]: URI.",
@@ -64,13 +65,13 @@
             "Attributes are specified in curly braces, e.g., {typeof=rdfs:Class}.",
             "Multiple properties are space-separated, e.g., {typeof=rdfs:Property rdfs:label=\"Name\"}.",
             "Use schema.org, rdfs, or owl vocabularies for types and properties.",
-            "Save files in semantic-weaver/ontology/ with .md extension."
+            "Save files in templates/ontology/ with .md extension."
           ]
         },
         "conversion": {
           "input": "Ontology definitions in plain text, Turtle, or other RDF formats.",
           "output": {
-            "markdown": "Markdown file with Markdown-LD syntax, saved in semantic-weaver/ontology/.",
+            "markdown": "Markdown file with Markdown-LD syntax, saved in templates/ontology/.",
             "example": {
               "input": "@prefix schema: <http://schema.org> .\nschema:Person a rdfs:Class ;\nrdfs:label \"Person\" .",
               "output": "[schema]: http://schema.org\n[rdfs]: http://www.w3.org/2000/01/rdf-schema#\n[Person]{typeof=rdfs:Class rdfs:label=\"Person\"}"
@@ -78,20 +79,88 @@
           },
           "steps": [
             "Identify classes, properties, and relationships in the input ontology.",
-            "Map to schema.org, rdfs, or owl vocabularies (refer to semantic-weaver/ontology.ttl).",
+            "Map to schema.org, rdfs, or owl vocabularies (refer to templates/ontology.ttl).",
             "Define namespaces at the top of the Markdown file (e.g., [schema]: http://schema.org).",
             "Convert classes to [Entity]{typeof=rdfs:Class rdfs:label=\"Label\"}.",
             "Convert properties to [Property]{typeof=rdfs:Property schema:domainIncludes=[Class]; schema:rangeIncludes=[Type]; rdfs:label=\"Label\"}.",
-            "Save as a .md file in semantic-weaver/ontology/, e.g., my-ontology.md."
+            "Save as a .md file in templates/ontology/, e.g., my-ontology.md."
           ]
         }
       }
     ],
     "references": {
-      "ontology": "semantic-weaver/ontology.ttl and semantic-weaver/ontology/*.md",
-      "cml_cmld_docs": "https://mediaprophet.github.io/init-draft-standards-wip/cml/",
-      "cmld_docs": "https://mediaprophet.github.io/init-draft-standards-wip/CMLD/",
-      "markdown_ld_docs": "https://blog.sparna.fr/post/semantic-markdown"
+      "ontology": [
+        {
+          "path": "templates/ontology.ttl",
+          "description": "Default Turtle ontology defining namespaces (e.g., ex:, doc:) and terms (e.g., doc:Document, ex:Person)."
+        },
+        {
+          "path": "templates/ontology/example-ontology.md",
+          "description": "Sample Markdown-LD ontology defining classes and properties (e.g., Person, name, refersTo)."
+        }
+      ],
+      "tutorials": [
+        {
+          "path": "templates/tutorials/semantic-canvas.md",
+          "description": "Guide for annotating and querying semantic canvases in Obsidian."
+        },
+        {
+          "path": "templates/tutorials/authoring-cml-cmld.md",
+          "description": "Tutorial on authoring CML and CMLD annotations for Markdown notes."
+        },
+        {
+          "path": "templates/tutorials/metadata-ui.md",
+          "description": "Instructions for using the metadata UI to edit CMLD annotations."
+        },
+        {
+          "path": "templates/tutorials/mermaid-diagrams.md",
+          "description": "Guide for visualizing RDF data as Mermaid diagrams using the Mermaid Diagram View."
+        },
+        {
+          "path": "templates/tutorials/faceted-search.md",
+          "description": "Tutorial on implementing faceted search with exported RDF data."
+        },
+        {
+          "path": "templates/tutorials/deployment.md",
+          "description": "Instructions for exporting and deploying RDF-enhanced documentation to MkDocs and GitHub."
+        },
+        {
+          "path": "templates/tutorials/rdf-graph.md",
+          "description": "Guide for visualizing RDF triples using the RDF Graph View."
+        }
+      ],
+      "demoFiles": [
+        {
+          "path": "templates/example-note.md",
+          "description": "Example Markdown note with CML/CMLD annotations demonstrating contextual disambiguation."
+        },
+        {
+          "path": "templates/example-canvas.canvas",
+          "description": "Sample canvas file with RDF-annotated nodes and edges for visualization and querying."
+        },
+        {
+          "path": "templates/semantic-weaver-functional-spec.md",
+          "description": "Functional specification and tutorial for the Semantic Weaver plugin."
+        }
+      ],
+      "external": [
+        {
+          "url": "https://mediaprophet.github.io/init-draft-standards-wip/cml/",
+          "description": "CML specification for contextual markup in Markdown."
+        },
+        {
+          "url": "https://mediaprophet.github.io/init-draft-standards-wip/CMLD/",
+          "description": "CMLD specification for document-level metadata in Markdown."
+        },
+        {
+          "url": "https://blog.sparna.fr/post/semantic-markdown",
+          "description": "Markdown-LD documentation for defining RDF ontologies in Markdown."
+        },
+        {
+          "url": "https://github.com/mediaprophet/obsidian-semantic-weaver",
+          "description": "Semantic Weaver repository containing plugin source and documentation."
+        }
+      ]
     }
   }
 }
