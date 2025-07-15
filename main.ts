@@ -1,13 +1,12 @@
-import { Plugin, Notice, TFolder } from 'obsidian';
+import { Plugin, Notice, TFile } from 'obsidian';
 import * as N3 from 'n3';
 import * as path from 'path';
 import * as fs from 'fs';
 import mermaid from 'mermaid';
-import markdownld from 'markdown-ld';
 import { RDFPluginSettings, DEFAULT_SETTINGS, RDFPluginSettingTab } from './settings/RDFPluginSettings';
 import { RDFGraphView } from './views/RDFGraphView';
 import { MermaidView } from './views/MermaidView';
-import { loadOntology, loadProjectTTL, loadExportedPredicates, storeQuad, parseCML, canvasToTurtle, exportCanvasToRDF, fetchOntologyTerms, extractCMLDMetadata, updateCMLDMetadata, deployToGitHub, generateProjectTTL, copyDocs, copyJsFiles, loadMarkdownOntologies, canvasToMermaid } from './utils/RDFUtils';
+import { loadOntology, loadProjectTTL, loadExportedPredicates, storeQuad, parseCML, canvasToTurtle, exportCanvasToRDF, extractCMLDMetadata, updateCMLDMetadata, copyDocs, copyJsFiles, loadMarkdownOntologies, canvasToMermaid, deployToGitHub, generateProjectTTL } from './utils/RDFUtils';
 
 const { namedNode, literal, quad } = N3.DataFactory;
 
@@ -20,8 +19,14 @@ export default class RDFPlugin extends Plugin {
     await this.loadSettings();
     await this.importDemoDocs();
 
-    // Initialize Mermaid.js
-    mermaid.initialize({ startOnLoad: false, theme: 'default' });
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        primaryColor: 'var(--text-accent)',
+        background: 'var(--background-primary)'
+      }
+    });
 
     this.rdfStore = new N3.Store();
     this.ontologyTtl = await loadOntology(this.app);
@@ -63,6 +68,10 @@ export default class RDFPlugin extends Plugin {
       new Notice('Export directory not set. Configure in Settings > Semantic Weaver Settings and run "Export RDF Docs for MkDocs".');
     }
 
+    if (!this.app.vault.config?.detectAllExtensions) {
+      new Notice('Enable "Detect all file extensions" in Settings > Files & Links to view .canvas and .ttl files.');
+    }
+
     this.addRibbonIcon('book-open', 'Semantic Weaver: Manage RDF Namespaces and Ontology', () => {
       import('./modals/NamespaceOntologyModal').then(({ NamespaceOntologyModal }) => {
         new NamespaceOntologyModal(this.app, this, async (namespaces, ontologyTtl) => {
@@ -96,6 +105,41 @@ export default class RDFPlugin extends Plugin {
           await loadMarkdownOntologies(this.app, this.rdfStore);
           new Notice(`Markdown ontology created: ${filePath}`);
         }).open();
+      });
+    });
+
+    this.addRibbonIcon('code', 'Semantic Weaver: Parse Markdown-LD', () => {
+      import('./modals/MarkdownLDModal').then(({ MarkdownLDModal }) => {
+        new MarkdownLDModal(this.app, this, null, async (graph, turtle, constraints, file) => {
+          if (file) {
+            const parser = new N3.Parser({ format: 'Turtle' });
+            const quads = await new Promise<N3.Quad[]>((resolve, reject) => {
+              const quads: N3.Quad[] = [];
+              parser.parse(turtle, (error, quad, prefixes) => {
+                if (error) reject(error);
+                if (quad) quads.push(quad);
+                else resolve(quads);
+              });
+            });
+            await this.rdfStore.addQuads(quads);
+            new Notice(`Parsed Markdown-LD and updated RDF store for ${file.path}`);
+          } else {
+            const output = this.settings.outputFormat === 'jsonld' ? JSON.stringify(graph, null, 2) : turtle;
+            new Notice(`Parsed Markdown-LD:\n${output}`);
+          }
+          if (constraints.length > 0) {
+            import('./modals/MarkdownLDModal').then(({ MarkdownLDModal }) => {
+              const modal = new MarkdownLDModal(this.app, this, file, async () => {});
+              modal.validateSHACL(modal.markdownContent).then(results => {
+                if (results.length > 0) {
+                  new Notice(`SHACL validation errors: ${JSON.stringify(results)}`);
+                } else {
+                  new Notice('SHACL validation passed');
+                }
+              });
+            });
+          }
+        }, this.settings.outputFormat).open();
       });
     });
 
@@ -136,6 +180,36 @@ export default class RDFPlugin extends Plugin {
               }).open();
             });
           }));
+
+        menu.addItem(item => item
+          .setTitle('Parse Markdown-LD')
+          .setIcon('code')
+          .onClick(() => {
+            import('./modals/MarkdownLDModal').then(({ MarkdownLDModal }) => {
+              new MarkdownLDModal(this.app, this, file, async (graph, turtle, constraints, file) => {
+                const parser = new N3.Parser({ format: 'Turtle' });
+                const quads = await new Promise<N3.Quad[]>((resolve, reject) => {
+                  const quads: N3.Quad[] = [];
+                  parser.parse(turtle, (error, quad, prefixes) => {
+                    if (error) reject(error);
+                    if (quad) quads.push(quad);
+                    else resolve(quads);
+                  });
+                });
+                await this.rdfStore.addQuads(quads);
+                new Notice(`Parsed Markdown-LD and updated RDF store for ${file.path}`);
+                if (constraints.length > 0) {
+                  const modal = new MarkdownLDModal(this.app, this, file, async () => {}, this.settings.outputFormat);
+                  const results = await modal.validateSHACL(modal.markdownContent);
+                  if (results.length > 0) {
+                    new Notice(`SHACL validation errors: ${JSON.stringify(results)}`);
+                  } else {
+                    new Notice('SHACL validation passed');
+                  }
+                }
+              }, this.settings.outputFormat).open();
+            });
+          }));
       }
     }));
 
@@ -159,6 +233,19 @@ export default class RDFPlugin extends Plugin {
               new URILookupModal(this.app, this.settings.namespaces, this.ontologyTtl, async uri => {
                 editor.replaceSelection(`[${uri.split('/').pop()}]`);
                 new Notice(`Inserted URI: ${uri} by Semantic Weaver`);
+              }).open();
+            });
+          }));
+
+        menu.addItem(item => item
+          .setTitle('Add Annotation')
+          .setIcon('note')
+          .onClick(() => {
+            import('./modals/AnnotationModal').then(({ AnnotationModal }) => {
+              new AnnotationModal(this.app, selection, async annotation => {
+                const wrapped = `<<[${selection}] oa:hasBody "${annotation}">>`;
+                editor.replaceSelection(wrapped);
+                new Notice('Annotation added by Semantic Weaver.');
               }).open();
             });
           }));
@@ -221,6 +308,33 @@ export default class RDFPlugin extends Plugin {
       }
     });
 
+    this.addCommand({
+      id: 'validate-rdf-data',
+      name: 'Semantic Weaver: Validate RDF Data',
+      callback: async () => {
+        const ontologyFolder = path.join(this.manifest.dir || path.join(this.app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver'), 'templates').replace(/\\/g, '/');
+        try {
+          const files = await fs.promises.readdir(ontologyFolder);
+          for (const file of files.filter(f => f.endsWith('.shacl.md'))) {
+            const content = await fs.promises.readFile(path.join(ontologyFolder, file), 'utf-8');
+            import('./modals/MarkdownLDModal').then(({ MarkdownLDModal }) => {
+              const modal = new MarkdownLDModal(this.app, this, null, async () => {}, this.settings.outputFormat);
+              modal.validateSHACL(content).then(results => {
+                if (results.length > 0) {
+                  new Notice(`SHACL validation errors in ${file}: ${JSON.stringify(results)}`);
+                } else {
+                  new Notice(`SHACL validation passed for ${file}`);
+                }
+              });
+            });
+          }
+        } catch (error) {
+          new Notice(`Failed to validate RDF data: ${error.message}`);
+          console.error(error);
+        }
+      }
+    });
+
     this.addSettingTab(new RDFPluginSettingTab(this.app, this));
     this.registerView('rdf-graph', (leaf) => new RDFGraphView(leaf, this));
     this.registerView('mermaid-view', (leaf) => new MermaidView(leaf, this));
@@ -238,7 +352,7 @@ export default class RDFPlugin extends Plugin {
     const templatesFolderPath = 'templates';
     const ontologyFolderPath = `${templatesFolderPath}/ontology`;
     const tutorialsFolderPath = `${templatesFolderPath}/tutorials`;
-    const pluginDir = path.join(this.app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver').replace(/\\/g, '/');
+    const pluginDir = this.manifest.dir || path.join(this.app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver').replace(/\\/g, '/');
     
     await this.app.vault.createFolder(templatesFolderPath).catch(() => {});
     await this.app.vault.createFolder(ontologyFolderPath).catch(() => {});
@@ -252,7 +366,8 @@ export default class RDFPlugin extends Plugin {
       'SemanticSyncGuide.md',
       'ontology/example-ontology.md',
       'ontology.ttl',
-      'project.ttl'
+      'project.ttl',
+      'constraints.shacl.md'
     ];
 
     const tutorialFiles = [
@@ -262,26 +377,51 @@ export default class RDFPlugin extends Plugin {
       'tutorials/mermaid-diagrams.md',
       'tutorials/faceted-search.md',
       'tutorials/deployment.md',
-      'tutorials/rdf-graph.md'
+      'tutorials/rdf-graph.md',
+      'tutorials/rdf-star-shacl.md'
     ];
 
     for (const file of demoFiles) {
       const srcPath = path.join(pluginDir, 'templates', file).replace(/\\/g, '/');
-      const destPath = path.join(pluginDir, 'templates', file).replace(/\\/g, '/');
-      if (!this.app.vault.getAbstractFileByPath(path.join(templatesFolderPath, file).replace(/\\/g, '/')) && fs.existsSync(srcPath)) {
-        await fs.promises.mkdir(path.dirname(destPath), { recursive: true });
-        await fs.promises.copyFile(srcPath, destPath);
-        new Notice(`Created demo file: ${templatesFolderPath}/${file}`);
+      const destPath = path.join(templatesFolderPath, file).replace(/\\/g, '/');
+      if (!fs.existsSync(srcPath)) {
+        new Notice(`Source file ${file} not found in plugin directory. Please ensure repository is complete.`);
+        continue;
+      }
+      if (!this.app.vault.getAbstractFileByPath(destPath)) {
+        await fs.promises.mkdir(path.dirname(path.join(pluginDir, destPath)), { recursive: true });
+        await this.app.vault.create(destPath, await fs.promises.readFile(srcPath, 'utf-8'));
+        new Notice(`Created demo file: ${destPath}`);
       }
     }
 
     for (const file of tutorialFiles) {
       const srcPath = path.join(pluginDir, 'templates', file).replace(/\\/g, '/');
-      const destPath = path.join(pluginDir, 'templates', file).replace(/\\/g, '/');
-      if (!this.app.vault.getAbstractFileByPath(path.join(templatesFolderPath, file).replace(/\\/g, '/')) && fs.existsSync(srcPath)) {
-        await fs.promises.mkdir(path.dirname(destPath), { recursive: true });
-        await fs.promises.copyFile(srcPath, destPath);
-        new Notice(`Created tutorial file: ${templatesFolderPath}/${file}`);
+      const destPath = path.join(templatesFolderPath, file).replace(/\\/g, '/');
+      if (!fs.existsSync(srcPath)) {
+        new Notice(`Source tutorial file ${file} not found in plugin directory. Please ensure repository is complete.`);
+        continue;
+      }
+      if (!this.app.vault.getAbstractFileByPath(destPath)) {
+        await fs.promises.mkdir(path.dirname(path.join(pluginDir, destPath)), { recursive: true });
+        await this.app.vault.create(destPath, await fs.promises.readFile(srcPath, 'utf-8'));
+        new Notice(`Created tutorial file: ${destPath}`);
+      }
+    }
+
+    // Copy js/ files to templates/js/
+    const jsSrcDir = path.join(pluginDir, 'js').replace(/\\/g, '/');
+    const jsDestDir = path.join(templatesFolderPath, 'js').replace(/\\/g, '/');
+    if (fs.existsSync(jsSrcDir)) {
+      await fs.promises.mkdir(jsDestDir, { recursive: true });
+      const jsFiles = ['faceted-search.js', 'rdf-graph.js', 'rdf-render.js'];
+      for (const file of jsFiles) {
+        const srcPath = path.join(jsSrcDir, file).replace(/\\/g, '/');
+        const destPath = path.join(jsDestDir, file).replace(/\\/g, '/');
+        if (fs.existsSync(srcPath)) {
+          await fs.promises.copyFile(srcPath, destPath);
+          new Notice(`Created JS file: ${destPath}`);
+        }
       }
     }
   }
@@ -352,8 +492,8 @@ export default class RDFPlugin extends Plugin {
   }
 
   async exportDocs() {
-    const { exportDir, includeTests, githubRepo, siteUrl } = this.settings;
-    const pluginDir = path.join(this.app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver').replace(/\\/g, '/');
+    const { exportDir, githubRepo, githubToken } = this.settings;
+    const pluginDir = this.manifest.dir || path.join(this.app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver').replace(/\\/g, '/');
     await copyDocs(this, pluginDir, exportDir);
     await copyJsFiles(this, pluginDir, exportDir);
     const ontologyPath = path.join(exportDir, 'docs', 'ontology.ttl').replace(/\\/g, '/');
@@ -377,21 +517,23 @@ export default class RDFPlugin extends Plugin {
       const ontologyFiles = await fs.promises.readdir(ontologyFolder);
       for (const file of ontologyFiles.filter(f => f.endsWith('.md'))) {
         const content = await fs.promises.readFile(path.join(ontologyFolder, file), 'utf-8');
-        const jsonld = markdownld(content);
-        const turtle = await new Promise<string>((resolve, reject) => {
-          const writer = new N3.Writer({ format: 'Turtle' });
-          const parser = new N3.Parser({ format: 'application/ld+json' });
-          parser.parse(jsonld, (error, quad, prefixes) => {
-            if (error) reject(error);
-            if (quad) writer.addQuad(quad);
-            else writer.end((err, result) => err ? reject(err) : resolve(result));
+        try {
+          import('./modals/MarkdownLDModal').then(({ MarkdownLDModal }) => {
+            const modal = new MarkdownLDModal(this.app, this, null, async () => {}, this.settings.outputFormat);
+            const { graph } = modal.parseMarkdownLD(content);
+            modal.markdownLDToTurtle(content).then(turtle => {
+              const turtlePath = path.join(exportDir, 'docs', 'ontology', `${file.replace('.md', '.ttl')}`).replace(/\\/g, '/');
+              const jsonldPath = path.join(exportDir, 'docs', 'ontology', `${file.replace('.md', '.jsonld')}`).replace(/\\/g, '/');
+              fs.promises.mkdir(path.dirname(turtlePath), { recursive: true }).then(() => {
+                fs.promises.writeFile(turtlePath, turtle);
+                fs.promises.writeFile(jsonldPath, JSON.stringify(graph, null, 2));
+              });
+            });
           });
-        });
-        const turtlePath = path.join(exportDir, 'docs', 'ontology', `${file.replace('.md', '.ttl')}`).replace(/\\/g, '/');
-        const jsonldPath = path.join(exportDir, 'docs', 'ontology', `${file.replace('.md', '.jsonld')}`).replace(/\\/g, '/');
-        await fs.promises.mkdir(path.dirname(turtlePath), { recursive: true });
-        await fs.promises.writeFile(turtlePath, turtle);
-        await fs.promises.writeFile(jsonldPath, jsonld);
+        } catch (error) {
+          new Notice(`Failed to convert Markdown-LD file ${file}: ${error.message}`);
+          console.error(error);
+        }
       }
     }
     if (githubRepo) {

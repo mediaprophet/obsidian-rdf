@@ -1,19 +1,27 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "ESNext",
+    "target": "es2020",
+    "module": "commonjs",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
-    "outDir": "./dist",
-    "rootDir": "./",
-    "baseUrl": ".",
-    "paths": {
-      "*": ["./*"]
-    }
+    "allowJs": true,
+    "noEmit": false,
+    "types": ["node", "obsidian"],
+    "baseUrl": "."
   },
-  "include": ["**/*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "main.ts",
+    "utils/*.ts",
+    "views/*.ts",
+    "settings/*.ts",
+    "modals/*.ts",
+    "js/*.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

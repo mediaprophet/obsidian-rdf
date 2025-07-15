@@ -1,6 +1,6 @@
 {
-  "githubRepo": "https://github.com/mediaprophet/obsidian-rdf",
-  "siteUrl": "https://mediaprophet.github.io/obsidian-rdf/",
-  "exportDir": "G:\\git\\obsidian-rdf",
+  "githubRepo": "https://github.com/mediaprophet/obsidian-semantic-weaver",
+  "siteUrl": "https://mediaprophet.github.io/obsidian-semantic-weaver/",
+  "exportDir": "F:\\git-working-folder\\test-obsidian-plugin\\TestPlugin\\export",
   "includeTests": true
 }

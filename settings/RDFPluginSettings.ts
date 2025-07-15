@@ -1,13 +1,15 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import { RDFPlugin } from '../main';
 
 export interface RDFPluginSettings {
   namespaces: { [key: string]: string };
   semanticCanvasMode: boolean;
   githubRepo: string;
+  githubToken: string;
   siteUrl: string;
   exportDir: string;
   includeTests: boolean;
+  outputFormat: 'jsonld' | 'turtle';
 }
 
 export const DEFAULT_SETTINGS: RDFPluginSettings = {
@@ -20,9 +22,11 @@ export const DEFAULT_SETTINGS: RDFPluginSettings = {
   },
   semanticCanvasMode: false,
   githubRepo: '',
+  githubToken: '',
   siteUrl: '',
   exportDir: '',
-  includeTests: false
+  includeTests: false,
+  outputFormat: 'turtle'
 };
 
 export class RDFPluginSettingTab extends PluginSettingTab {
@@ -50,6 +54,26 @@ export class RDFPluginSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
+      .setName('Namespaces')
+      .setDesc('Define RDF namespaces as JSON (e.g., {"ex": "http://example.org/"})')
+      .addTextArea(text => text
+        .setValue(JSON.stringify(this.plugin.settings.namespaces, null, 2))
+        .onChange(async value => {
+          try {
+            const parsed = JSON.parse(value);
+            if (typeof parsed !== 'object' || parsed === null) {
+              new Notice('Invalid namespaces: Must be a JSON object.');
+              return;
+            }
+            this.plugin.settings.namespaces = parsed;
+            await this.plugin.saveSettings();
+            new Notice('Namespaces updated by Semantic Weaver.');
+          } catch (e) {
+            new Notice(`Invalid JSON for namespaces: ${e.message}`);
+          }
+        }));
+
+    new Setting(containerEl)
       .setName('Default Export Directory')
       .setDesc('Set the default directory for exporting MkDocs projects')
       .addText(text => text
@@ -72,6 +96,28 @@ export class RDFPluginSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
+      .setName('GitHub Repository')
+      .setDesc('Set the GitHub repository for exports (e.g., username/repository)')
+      .addText(text => text
+        .setPlaceholder('username/repository')
+        .setValue(this.plugin.settings.githubRepo)
+        .onChange(async value => {
+          this.plugin.settings.githubRepo = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('GitHub Personal Access Token')
+      .setDesc('Set a GitHub token for authenticated deployment (optional, for private repositories)')
+      .addText(text => text
+        .setPlaceholder('ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
+        .setValue(this.plugin.settings.githubToken)
+        .onChange(async value => {
+          this.plugin.settings.githubToken = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
       .setName('Include Test Files')
       .setDesc('Include files from the tests/ folder in exports')
       .addToggle(toggle => toggle
@@ -82,14 +128,16 @@ export class RDFPluginSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName('GitHub Repository')
-      .setDesc('Set the GitHub repository for exports (e.g., username/repository)')
-      .addText(text => text
-        .setPlaceholder('username/repository')
-        .setValue(this.plugin.settings.githubRepo)
+      .setName('RDF Output Format')
+      .setDesc('Select the default output format for Markdown-LD parsing')
+      .addDropdown(dropdown => dropdown
+        .addOption('turtle', 'Turtle')
+        .addOption('jsonld', 'JSON-LD')
+        .setValue(this.plugin.settings.outputFormat)
         .onChange(async value => {
-          this.plugin.settings.githubRepo = value;
-          await this.saveSettings();
+          this.plugin.settings.outputFormat = value as 'jsonld' | 'turtle';
+          await this.plugin.saveSettings();
+          new Notice(`Default RDF output format set to ${value}.`);
         }));
   }
 }

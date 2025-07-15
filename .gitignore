@@ -28,4 +28,3 @@ tests/output/
 !package.json
 !esbuild.config.mjs
 !templates/
-!demo/

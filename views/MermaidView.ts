@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from 'obsidian';
+import { ItemView, WorkspaceLeaf, TFile } from 'obsidian';
 import * as mermaid from 'mermaid';
 import { RDFPlugin } from '../main';
 import { canvasToMermaid } from '../utils/RDFUtils';
@@ -18,7 +18,7 @@ export class MermaidView extends ItemView {
   }
 
   getDisplayText(): string {
-    return 'Mermaid Diagram View';
+    return 'Mermaid Diagram';
   }
 
   getIcon(): string {
@@ -28,37 +28,41 @@ export class MermaidView extends ItemView {
   async onOpen() {
     const container = this.containerEl.children[1];
     container.empty();
-    container.createEl('h4', { text: 'Mermaid Diagram View' });
+    container.createEl('h4', { text: 'Mermaid Diagram' });
 
     const canvasFiles = this.app.vault.getFiles().filter(f => f.extension === 'canvas');
+    const diagramDiv = container.createEl('div', { cls: 'mermaid' });
+
     if (canvasFiles.length === 0) {
-      container.createEl('p', { text: 'No canvas files found. Create a canvas file to visualize as a Mermaid diagram.' });
+      diagramDiv.createEl('p', { text: 'No canvas files found. Create a canvas file to visualize as a Mermaid diagram.' });
       return;
     }
 
     const select = container.createEl('select');
+    const activeFile = this.app.workspace.getActiveFile();
     canvasFiles.forEach(file => {
       const option = select.createEl('option', { text: file.basename, value: file.path });
-      if (file.path === 'templates/example-canvas.canvas') {
+      if (file === activeFile || (!activeFile && file.path === 'templates/example-canvas.canvas')) {
         option.selected = true;
       }
     });
 
-    const diagramDiv = container.createEl('div', { cls: 'mermaid-diagram' });
-
     const renderDiagram = async () => {
+      diagramDiv.empty();
       const filePath = select.value;
       const file = this.app.vault.getAbstractFileByPath(filePath);
-      if (file instanceof TFile) {
-        const content = await this.app.vault.read(file);
-        const canvasData = JSON.parse(content);
-        const mermaidCode = await canvasToMermaid(this.plugin, canvasData);
+      if (file instanceof TFile && file.extension === 'canvas') {
         try {
-          const { svg } = await mermaid.render('mermaid-diagram', mermaidCode);
+          const content = await this.app.vault.read(file);
+          const canvasData = JSON.parse(content);
+          const mermaidCode = await canvasToMermaid(this.plugin, canvasData);
+          const { svg } = await mermaid.default.render('mermaid-diagram', mermaidCode);
           diagramDiv.innerHTML = svg;
         } catch (error) {
-          diagramDiv.innerHTML = `<p>Error rendering Mermaid diagram: ${error.message}</p>`;
+          diagramDiv.createEl('p', { text: `Error rendering Mermaid diagram: ${error.message}` });
         }
+      } else {
+        diagramDiv.createEl('p', { text: 'Select a canvas file to view its Mermaid diagram.' });
       }
     };
 
@@ -67,6 +71,6 @@ export class MermaidView extends ItemView {
   }
 
   async onClose() {
-    // Cleanup if needed
+    // Cleanup if necessary
   }
 }
