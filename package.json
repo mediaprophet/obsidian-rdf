@@ -1,0 +1,23 @@
+{
+  "name": "semantic-weaver",
+  "version": "1.0.0",
+  "description": "Obsidian plugin for RDF-based ontology management and documentation",
+  "main": "main.js",
+  "scripts": {
+    "build": "node esbuild.config.js",
+    "dev": "node esbuild.config.js --watch"
+  },
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "cytoscape": "^3.30.2",
+    "rdflib": "^2.2.37"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "esbuild": "^0.23.0",
+    "esbuild-node-externals": "^1.13.1",
+    "obsidian": "^1.5.3",
+    "typescript": "^5.4.5"
+  }
+}

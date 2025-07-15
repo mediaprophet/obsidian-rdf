@@ -1,0 +1,38 @@
+[
+  {
+    "file": "main.ts",
+    "tasks": [
+      "Replace all rdflib usage with n3/rdfstore (done)",
+      "Update all RDF graph and SPARQL logic to use n3/rdfstore APIs (in progress)",
+      "Fix all type errors (TFile, path, fs, etc.) (in progress)",
+      "Add explicit type annotations for all callback parameters (pending)",
+      "Ensure plugin class has access to app property (pending)",
+      "Add type stubs or comments for missing modules for Electron/Obsidian context (pending)",
+      "Replace require with dynamic import or compatible Electron/Obsidian code (pending)",
+      "Update Solid authentication to use @inrupt/solid-client-authn-browser only (pending)"
+    ]
+  },
+  {
+    "file": "utils/RDFUtils.ts",
+    "tasks": [
+      "Remove all rdflib and @comunica usage (done)",
+      "Replace RDF logic with n3/rdfstore/jsonld (in progress)",
+      "Update all serialization and parsing to use n3/jsonld APIs (pending)",
+      "Add explicit type annotations for all callback parameters (pending)",
+      "Add type stubs or comments for missing modules for Electron/Obsidian context (pending)"
+    ]
+  },
+  {
+    "file": "modals/NamespaceOntologyModal.ts",
+    "tasks": [
+      "Replace DataFactory usage with n3 DataFactory (done)"
+    ]
+  },
+  {
+    "file": "modals/URILookupModal.ts",
+    "tasks": [
+      "Remove all rdflib and @comunica usage (done)",
+      "Replace RDF term conversion and graph logic with n3/rdfstore equivalents (done)"
+    ]
+  }
+]

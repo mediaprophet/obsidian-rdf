@@ -1,0 +1,9 @@
+{
+  "id": "semantic-weaver",
+  "name": "Semantic Weaver",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Weave semantic web ontologies, RDF-enhanced documentation, and knowledge graphs with CML, CMLD, Semantic Canvas Mode, and exports to MkDocs, GitHub Pages, or Solid Pods.",
+  "author": "Your Name",
+  "isDesktopOnly": true
+}

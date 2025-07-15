@@ -1,0 +1,34 @@
+[
+  {
+    "file": "main.ts",
+    "status": "Refactored: Quadstore, Engine, and MemDown removed. Uses rdflib.Store and @comunica/query-sparql. All logic and types updated."
+  },
+  {
+    "file": "utils/RDFUtils.ts",
+    "status": "Refactored: All functions and signatures now use rdflib.Store. Logic and types updated."
+  },
+  {
+    "file": "modals/URILookupModal.ts",
+    "status": "Refactored: Now uses rdflib.Store for in-memory RDF. Logic and types verified."
+  },
+  {
+    "file": "views/RDFGraphView.ts",
+    "status": "Refactored: Uses plugin.rdfStore.statementsMatching. Logic and types verified."
+  },
+  {
+    "file": "modals/ExportConfigModal.ts",
+    "status": "Checked: No references to Quadstore or related APIs found. No changes needed."
+  },
+  {
+    "file": "modals/SemanticCanvasModal.ts",
+    "status": "Checked: No references to Quadstore or related APIs found. No changes needed."
+  },
+  {
+    "file": "modals/SemanticEdgeModal.ts",
+    "status": "Checked: No references to Quadstore or related APIs found. No changes needed."
+  },
+  {
+    "file": "modals/SPARQLQueryModal.ts",
+    "status": "Checked: No references to Quadstore or related APIs found. No changes needed."
+  }
+]

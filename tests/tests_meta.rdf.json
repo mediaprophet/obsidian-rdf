@@ -1,0 +1,6 @@
+{
+  "http://example.org/Page1": {
+    "http://example.org/doc/version": [{"value": "1.0", "type": "literal"}],
+    "http://example.org/doc/created": [{"value": "2025-07-14", "type": "literal", "datatype": "http://www.w3.org/2001/XMLSchema#date"}]
+  }
+}

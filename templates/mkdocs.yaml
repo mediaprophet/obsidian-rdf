@@ -1,0 +1,40 @@
+site_name: Semantic Weaver
+site_url: {}
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - content.tabs
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+plugins:
+  - search
+  - mdx:
+      source_dir: docs
+      output_dir: site
+markdown_extensions:
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - pymdownx.blocks
+  - pymdownx.emoji
+  - attr_list
+  - def_list
+  - admonition
+  - pymdownx.highlight:
+      use_pygments: true
+  - pymdownx.inlinehilite
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Tutorials:
+      - Authoring CML/CMLD: tutorials/authoring-cml-cmld.md
+      - Metadata UI: tutorials/metadata-ui.md
+      - Mermaid Diagrams: tutorials/mermaid-diagrams.md
+      - Faceted Search: tutorials/faceted-search.md
+      - Deployment: tutorials/deployment.md
+      - Solid Pod Integration: tutorials/solid-pod.md
+      - RDF Graph Visualization: tutorials/rdf-graph.md
+      - Semantic Canvas Mode: tutorials/semantic-canvas.md
