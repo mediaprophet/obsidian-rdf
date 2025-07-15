@@ -1,0 +1,97 @@
+{
+  "guide": {
+    "name": "Semantic Weaver Sync Guide",
+    "version": "1.0.0",
+    "description": "Instructions for AI agents to convert documents into Semantic Weaver's Context Markup Language (CML), Context Markup Language for Documentation (CMLD), and Markdown-LD formats for RDF integration in Obsidian, addressing ambiguity in text and ontologies (e.g., language or regional differences).",
+    "formats": [
+      {
+        "name": "CML/CMLD",
+        "description": "Context Markup Language (CML) and Context Markup Language for Documentation (CMLD) for annotating Markdown notes with RDF metadata, designed to resolve ambiguities in unstructured text or linked-data ontologies. See https://mediaprophet.github.io/init-draft-standards-wip/cml/ and https://mediaprophet.github.io/init-draft-standards-wip/CMLD/.",
+        "syntax": {
+          "cml": {
+            "description": "Used for general RDF annotations without @doc prefix, including contextual disambiguation (e.g., clarifying 'Washington' as a state or person).",
+            "pattern": "[Subject] predicate: value; predicate2: [Object] or \"Literal\".",
+            "example": "[Washington] ex:refersTo: [ex:State_Washington]; category: \"Location\".",
+            "rules": [
+              "Subject is enclosed in square brackets, e.g., [Washington].",
+              "Predicates and values are separated by a colon (:).",
+              "Multiple predicate-value pairs are separated by semicolons (;).",
+              "Objects can be URIs (in square brackets) or literals (in quotes for strings).",
+              "Use namespace prefixes from ontology, e.g., ex: for http://example.org/.",
+              "Use ex:refersTo for contextual disambiguation, e.g., [Washington]{ex:refersTo=ex:State_Washington}."
+            ]
+          },
+          "cmld": {
+            "description": "Used for document metadata with @doc prefix, supporting contextual metadata.",
+            "pattern": "@doc [Subject] predicate: value; predicate2: [Object] or \"Literal\".",
+            "example": "@doc [ExampleNote] category: \"Documentation\"; author: [John]; created: \"2025-07-15\".",
+            "rules": [
+              "Start with @doc followed by subject in square brackets.",
+              "Follows same predicate-value pair rules as CML.",
+              "Typically used for document-level metadata like category, author, created."
+            ]
+          }
+        },
+        "conversion": {
+          "input": "Any document with identifiable entities and relationships, potentially ambiguous (e.g., 'Washington' as a state or person).",
+          "output": {
+            "markdown": "Insert CML or CMLD annotations at the top or bottom of the Markdown file.",
+            "example": {
+              "input": "This is a note about a project meeting held on July 15, 2025, with John as the author, discussing Washington.",
+              "output": "# Project Meeting\n@doc [MeetingNote] category: \"Meeting\"; author: [John]; created: \"2025-07-15\".\n[Washington]{ex:refersTo=ex:State_Washington}\nThis is a note about a project meeting in Washington state."
+            }
+          },
+          "steps": [
+            "Identify key entities (e.g., documents, people, locations) and their relationships.",
+            "Detect potential ambiguities (e.g., 'Washington' as state, person, or city) and resolve using context (e.g., document content, regional references).",
+            "Map entities to ontology terms (e.g., doc:Document, ex:Person) from semantic-weaver/ontology.ttl or semantic-weaver/ontology/*.md.",
+            "Generate CML for relationships and disambiguation (e.g., [Washington] ex:refersTo: [ex:State_Washington]).",
+            "Generate CMLD for document metadata (e.g., @doc [Note] category: \"Documentation\").",
+            "Append annotations to the Markdown file."
+          ]
+        }
+      },
+      {
+        "name": "Markdown-LD",
+        "description": "Markdown-LD syntax for defining RDF ontologies in semantic-weaver/ontology/*.md files, based on schema.org and RDFa.",
+        "syntax": {
+          "description": "Uses inline attributes in square brackets with typeof and property annotations, and footnote-style namespace declarations.",
+          "pattern": "[Entity]{typeof=type property=value} or [prefix]: URI.",
+          "example": "[schema]: http://schema.org\n[rdfs]: http://www.w3.org/2000/01/rdf-schema#\n[Person]{typeof=rdfs:Class rdfs:label=\"Person\"}\n[name]{typeof=rdfs:Property schema:domainIncludes=[Person]; schema:rangeIncludes=[schema:Text]; rdfs:label=\"Name\"}",
+          "rules": [
+            "Define namespaces at the top with [prefix]: URI (e.g., [schema]: http://schema.org).",
+            "Entities are enclosed in square brackets, e.g., [Person].",
+            "Attributes are specified in curly braces, e.g., {typeof=rdfs:Class}.",
+            "Multiple properties are space-separated, e.g., {typeof=rdfs:Property rdfs:label=\"Name\"}.",
+            "Use schema.org, rdfs, or owl vocabularies for types and properties.",
+            "Save files in semantic-weaver/ontology/ with .md extension."
+          ]
+        },
+        "conversion": {
+          "input": "Ontology definitions in plain text, Turtle, or other RDF formats.",
+          "output": {
+            "markdown": "Markdown file with Markdown-LD syntax, saved in semantic-weaver/ontology/.",
+            "example": {
+              "input": "@prefix schema: <http://schema.org> .\nschema:Person a rdfs:Class ;\nrdfs:label \"Person\" .",
+              "output": "[schema]: http://schema.org\n[rdfs]: http://www.w3.org/2000/01/rdf-schema#\n[Person]{typeof=rdfs:Class rdfs:label=\"Person\"}"
+            }
+          },
+          "steps": [
+            "Identify classes, properties, and relationships in the input ontology.",
+            "Map to schema.org, rdfs, or owl vocabularies (refer to semantic-weaver/ontology.ttl).",
+            "Define namespaces at the top of the Markdown file (e.g., [schema]: http://schema.org).",
+            "Convert classes to [Entity]{typeof=rdfs:Class rdfs:label=\"Label\"}.",
+            "Convert properties to [Property]{typeof=rdfs:Property schema:domainIncludes=[Class]; schema:rangeIncludes=[Type]; rdfs:label=\"Label\"}.",
+            "Save as a .md file in semantic-weaver/ontology/, e.g., my-ontology.md."
+          ]
+        }
+      }
+    ],
+    "references": {
+      "ontology": "semantic-weaver/ontology.ttl and semantic-weaver/ontology/*.md",
+      "cml_cmld_docs": "https://mediaprophet.github.io/init-draft-standards-wip/cml/",
+      "cmld_docs": "https://mediaprophet.github.io/init-draft-standards-wip/CMLD/",
+      "markdown_ld_docs": "https://blog.sparna.fr/post/semantic-markdown"
+    }
+  }
+}

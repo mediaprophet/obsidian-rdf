@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as child_process from 'child_process';
 import * as N3 from 'n3';
+import markdownld from 'markdown-ld';
 import { RDFPlugin } from '../main';
 
 const { namedNode, literal, quad } = N3.DataFactory;
@@ -89,10 +90,40 @@ export async function loadProjectTTL(app: App, store: N3.Store): Promise<void> {
   }
 }
 
+export async function loadMarkdownOntologies(app: App, store: N3.Store): Promise<void> {
+  const ontologyFolder = path.join(app.vault.adapter.basePath, 'semantic-weaver', 'ontology').replace(/\\/g, '/');
+  try {
+    await fs.promises.access(ontologyFolder);
+    const files = await fs.promises.readdir(ontologyFolder);
+    for (const file of files.filter(f => f.endsWith('.md'))) {
+      const content = await fs.promises.readFile(path.join(ontologyFolder, file), 'utf-8');
+      const jsonld = markdownld(content);
+      const parser = new N3.Parser({ format: 'application/ld+json' });
+      const quads = await new Promise<N3.Quad[]>((resolve, reject) => {
+        const quads: N3.Quad[] = [];
+        parser.parse(jsonld, (error, quad, prefixes) => {
+          if (error) reject(error);
+          if (quad) quads.push(quad);
+          else resolve(quads);
+        });
+      });
+      await store.addQuads(quads);
+      new Notice(`Loaded Markdown ontology: ${file}`);
+    }
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      new Notice(`Ontology folder ${ontologyFolder} not found. Creating it...`);
+      await fs.promises.mkdir(ontologyFolder, { recursive: true });
+    } else {
+      new Notice(`Failed to load Markdown ontologies: ${error.message}`);
+      console.error(error);
+    }
+  }
+}
+
 export async function loadExportedPredicates(app: App, store: N3.Store, exportDir: string): Promise<void> {
   const canvasDir = path.join(exportDir, 'docs', 'canvas').replace(/\\/g, '/');
   try {
-    // Check if directory exists
     await fs.promises.access(canvasDir);
     const files = await fs.promises.readdir(canvasDir);
     for (const file of files.filter(f => f.endsWith('.ttl'))) {
@@ -183,7 +214,6 @@ export async function exportCanvasToRDF(plugin: RDFPlugin, canvasFile: TFile, fo
     const nodeUri = node.url || `${plugin.settings.namespaces.ex}${node.id}`;
     const nodeQuads = store.getQuads(namedNode(nodeUri), null, null);
     quads.push(...nodeQuads);
-    // Add fragment-specific metadata if node.url contains a fragment
     if (node.url && node.url.includes('#')) {
       const fragment = node.url.split('#')[1];
       quads.push(quad(
@@ -243,9 +273,9 @@ export async function fetchOntologyTerms(store: N3.Store): Promise<{ uri: string
   return results;
 }
 
-export function extractCMLDMetadata(content: string): { [key: string]: string } {
+export async function extractCMLDMetadata(content: string): { [key: string]: string } {
   const metadata: { [key: string]: string } = {};
-  const cmlPattern = /(@doc\s+\[(.*?)\]\s*(.*?)(?=\n\[|\n@doc|\Z))/s;
+  const cmlPattern = /(@doc\s+\[(.*?)\]\s*.*?)(?=\n\[|\n@doc|\Z)/s;
   const match = content.match(cmlPattern);
   if (match) {
     const properties = match[2].trim().split(';').map(p => p.trim()).filter(p => p && p.includes(':'));
@@ -354,7 +384,7 @@ export async function generateProjectTTL(plugin: RDFPlugin): Promise<string> {
   });
 }
 
-export async function copyDocs(plugin: RDFPlugin, pluginDir: string, exportDir: string, includeTests: boolean) {
+export async function copyDocs(plugin: RDFPlugin, pluginDir: string, exportDir: string, includeTests: boolean = false) {
   const templateFiles = [
     'mkdocs.yml',
     'getting-started.md',
@@ -367,7 +397,8 @@ export async function copyDocs(plugin: RDFPlugin, pluginDir: string, exportDir: 
     'tutorials/rdf-graph.md',
     'github-action.yml',
     'semantic-weaver-functional-spec.md',
-    'server.js'
+    'server.js',
+    'SemanticSyncGuide.md'
   ];
   for (const file of templateFiles) {
     const srcPath = path.join(pluginDir, 'templates', file).replace(/\\/g, '/');
