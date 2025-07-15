@@ -1,19 +1,33 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "ESNext",
+    "target": "es2020",
+    "module": "commonjs",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
-    "outDir": "./dist",
-    "rootDir": "./",
+    "allowJs": true,
+    "noEmit": false,
+    "types": ["node", "obsidian", "mermaid"],
     "baseUrl": ".",
     "paths": {
-      "*": ["./*"]
+      "markdown-ld": ["libs/markdown-ld/src/index.ts"]
     }
   },
-  "include": ["**/*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "main.ts",
+    "utils/*.ts",
+    "views/*.ts",
+    "settings/*.ts",
+    "modals/*.ts",
+    "libs/markdown-ld/src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "*.js",
+    "libs/markdown-ld/node_modules",
+    "libs/markdown-ld/dist"
+  ]
 }

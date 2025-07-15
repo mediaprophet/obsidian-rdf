@@ -1,9 +1,8 @@
 import { App, Notice, TFile } from 'obsidian';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as child_process from 'child_process';
 import * as N3 from 'n3';
-import markdownld from 'markdown-ld';
+import { markdownld, validateSHACL } from 'markdown-ld';
 import { RDFPlugin } from '../main';
 
 const { namedNode, literal, quad } = N3.DataFactory;

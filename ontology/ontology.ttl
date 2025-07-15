@@ -1,0 +1,47 @@
+@prefix ex: <http://example.org/> .
+@prefix doc: <http://example.org/doc/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix oa: <http://www.w3.org/ns/oa#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+ex:similarTo a owl:ObjectProperty ;
+  rdfs:label "Similar To" .
+
+ex:unRelatedTo a owl:ObjectProperty ;
+  rdfs:label "Unrelated To" .
+
+ex:differentTo a owl:ObjectProperty ;
+  rdfs:label "Different To" .
+
+doc:category a rdf:Property ;
+  rdfs:label "Category" ;
+  rdfs:domain doc:Document ;
+  rdfs:range rdfs:Literal .
+
+doc:author a rdf:Property ;
+  rdfs:label "Author" ;
+  rdfs:domain doc:Document ;
+  rdfs:range ex:Person .
+
+doc:related a rdf:Property ;
+  rdfs:label "Related" ;
+  rdfs:domain doc:Document ;
+  rdfs:range doc:Document .
+
+doc:created a rdf:Property ;
+  rdfs:label "Created Date" ;
+  rdfs:domain doc:Document ;
+  rdfs:range rdfs:Literal .
+
+doc:version a rdf:Property ;
+  rdfs:label "Version" ;
+  rdfs:domain doc:Document ;
+  rdfs:range rdfs:Literal .
+
+doc:Document a rdfs:Class ;
+  rdfs:label "Document" .
+
+ex:Person a rdfs:Class ;
+  rdfs:label "Person" .
