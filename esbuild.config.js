@@ -9,5 +9,6 @@ esbuild.build({
   target: 'es2018',
   sourcemap: true,
   treeShaking: true,
-  minify: false
+  minify: false,
+  external: ['obsidian']
 }).catch(() => process.exit(1));
