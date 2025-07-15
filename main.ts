@@ -19,12 +19,14 @@ export default class RDFPlugin extends Plugin {
     await this.loadSettings();
     await this.importDemoDocs();
 
+    // Initialize Mermaid with theme-aware colors
+    const isDarkTheme = this.app.getTheme() === 'obsidian';
     mermaid.initialize({
       startOnLoad: false,
       theme: 'base',
       themeVariables: {
-        primaryColor: 'var(--text-accent)',
-        background: 'var(--background-primary)'
+        primaryColor: isDarkTheme ? '#7d5bed' : '#5b4dd6', // Accent color for dark/light themes
+        background: isDarkTheme ? '#202020' : '#ffffff' // Background for dark/light themes
       }
     });
 

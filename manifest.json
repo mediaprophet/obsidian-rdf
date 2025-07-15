@@ -2,7 +2,7 @@
   "id": "semantic-weaver",
   "name": "Semantic Weaver",
   "version": "1.0.0",
-  "minAppVersion": "0.15.0",
+  "minAppVersion": "1.6.7",
   "description": "Enhance Obsidian with RDF-based ontology management and documentation",
   "author": "Timothy Holborn",
   "isDesktopOnly": true
