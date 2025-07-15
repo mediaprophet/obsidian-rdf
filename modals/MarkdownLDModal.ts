@@ -22,13 +22,14 @@ export class MarkdownLDModal extends Modal {
   file: TFile | null;
   onSubmit: (graph: any, turtle: string, constraints: SHACLConstraint[], file: TFile | null) => void;
   markdownContent: string = '';
-  outputFormat: 'jsonld' | 'turtle' = 'turtle';
+  outputFormat: 'jsonld' | 'turtle';
 
-  constructor(app: App, plugin: RDFPlugin, file: TFile | null, onSubmit: (graph: any, turtle: string, constraints: SHACLConstraint[], file: TFile | null) => void) {
+  constructor(app: App, plugin: RDFPlugin, file: TFile | null, onSubmit: (graph: any, turtle: string, constraints: SHACLConstraint[], file: TFile | null) => void, outputFormat: 'jsonld' | 'turtle' = 'turtle') {
     super(app);
     this.plugin = plugin;
     this.file = file;
     this.onSubmit = onSubmit;
+    this.outputFormat = outputFormat;
   }
 
   async onOpen() {
