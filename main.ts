@@ -40,11 +40,15 @@ export default class RDFPlugin extends Plugin {
       new Notice(`Failed to load project TTL: ${error.message}. Skipping project TTL.`);
       console.error(error);
     }
-    try {
-      await loadExportedPredicates(this.app, this.rdfStore, this.settings.exportDir || path.join(this.app.vault.adapter.basePath, 'exports').replace(/\\/g, '/'));
-    } catch (error) {
-      new Notice(`Failed to load exported predicates: ${error.message}.`);
-      console.error(error);
+    if (this.settings.exportDir) {
+      try {
+        await loadExportedPredicates(this.app, this.rdfStore, this.settings.exportDir);
+      } catch (error) {
+        new Notice(`Failed to load exported predicates: ${error.message}. Configure export directory in settings.`);
+        console.error(error);
+      }
+    } else {
+      new Notice('Export directory not set. Configure in Settings > Semantic Weaver Settings and run "Export RDF Docs for MkDocs".');
     }
 
     this.addRibbonIcon('book-open', 'Semantic Weaver: Manage RDF Namespaces and Ontology', () => {

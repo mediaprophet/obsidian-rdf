@@ -92,6 +92,8 @@ export async function loadProjectTTL(app: App, store: N3.Store): Promise<void> {
 export async function loadExportedPredicates(app: App, store: N3.Store, exportDir: string): Promise<void> {
   const canvasDir = path.join(exportDir, 'docs', 'canvas').replace(/\\/g, '/');
   try {
+    // Check if directory exists
+    await fs.promises.access(canvasDir);
     const files = await fs.promises.readdir(canvasDir);
     for (const file of files.filter(f => f.endsWith('.ttl'))) {
       const content = await fs.promises.readFile(path.join(canvasDir, file), 'utf-8');
@@ -108,8 +110,12 @@ export async function loadExportedPredicates(app: App, store: N3.Store, exportDi
       new Notice(`Loaded predicates from exported file: ${file}`);
     }
   } catch (error) {
-    new Notice(`Failed to load exported predicates: ${error.message}`);
-    console.error(error);
+    if (error.code === 'ENOENT') {
+      new Notice(`Export directory ${canvasDir} not found. Run 'Export RDF Docs for MkDocs' to create it.`);
+    } else {
+      new Notice(`Failed to load exported predicates: ${error.message}`);
+      console.error(error);
+    }
   }
 }
 

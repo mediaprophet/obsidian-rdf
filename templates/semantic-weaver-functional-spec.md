@@ -20,14 +20,16 @@
 - **Functionality**:
   - Define namespaces (e.g., `ex:`, `doc:`) and ontology terms (e.g., `doc:Document`, `ex:Person`).
   - Edit via **Semantic Weaver: Manage RDF Namespaces and Ontology** ribbon icon.
-  - Automatically loads predicates from exported canvas `.ttl` files in the export directory.
+  - Automatically loads predicates from exported canvas `.ttl` files in the export directory (`docs/canvas/`).
 - **Tutorial**:
   1. Open the `semantic-weaver` folder in your vault.
   2. View `ontology.ttl` to see predefined terms like `doc:category` and `ex:relatedTo`.
   3. Click the **book-open** ribbon icon to open the **NamespaceOntologyModal**.
   4. Add a new namespace (e.g., `my: http://my.org/`) or edit `ontology.ttl`.
   5. Save and verify the updated ontology is loaded.
-  6. Export a canvas to `~/my-docs/docs/canvas/` and check that new predicates (e.g., `ex:newRelation`) are loaded into the RDF store.
+  6. Configure **Default Export Directory** in **Settings > Semantic Weaver Settings** (e.g., `~/my-docs`).
+  7. Run **Semantic Weaver: Export RDF Docs for MkDocs** to create `~/my-docs/docs/canvas/`.
+  8. Verify that new predicates (e.g., `ex:newRelation`) from exported `.ttl` files are loaded into the RDF store.
 
 ### 2. Semantic Canvas Editing
 - **Description**: Annotate canvas nodes and edges with RDF triples, stored in an `n3` store and exported as Turtle/JSON-LD.
@@ -104,7 +106,7 @@
      - Set **GitHub Repository** (e.g., `username/repository`).
      - Set **Default Site URL** (e.g., `username.github.io/reponame`).
      - Enable **Include Test Files** if desired.
-  2. Run **Semantic Weaver: Export RDF Docs for MkDocs**.
+  2. Run **Semantic Weaver: Export RDF Docs for MkDocs** to create `~/my-docs/docs/canvas/`.
   3. Check `~/my-docs/docs/canvas/` for exported `example-canvas.ttl` and `example-canvas.jsonld`.
   4. Verify `ontology.ttl`, `project.ttl`, and `server.js` in `~/my-docs/`.
   5. Preview locally:
@@ -143,9 +145,27 @@ The `semantic-weaver` folder contains:
 
 ## Getting Started
 1. Enable **Semantic Weaver** in **Settings > Community Plugins**.
-2. Explore the `semantic-weaver` folder for demo files.
-3. Follow the tutorials above to manage ontologies, edit canvases, query data, and export documentation.
-4. Configure export settings and deploy to GitHub for a live site.
-5. Use `server.js` for local content negotiation testing.
+2. Configure **Default Export Directory** in **Settings > Semantic Weaver Settings** (e.g., `~/my-docs`).
+3. Run **Semantic Weaver: Export RDF Docs for MkDocs** to create the export directory structure.
+4. Explore the `semantic-weaver` folder for demo files.
+5. Follow the tutorials above to manage ontologies, edit canvases, query data, and export documentation.
+6. Use `server.js` for local content negotiation testing.
+
+## Troubleshooting
+- **Error: ENOENT: no such file or directory, scandir 'docs/canvas'**:
+  - **Cause**: The export directory (`~/my-docs` or as set in settings) does not contain a `docs/canvas` folder, likely because the export command hasn’t been run.
+  - **Fix**:
+    1. Go to **Settings > Semantic Weaver Settings** and set **Default Export Directory** (e.g., `~/my-docs`).
+    2. Run **Semantic Weaver: Export RDF Docs for MkDocs** to create `~/my-docs/docs/canvas/`.
+    3. Verify the directory:
+       ```bash
+       dir ~/my-docs/docs/canvas
+       ```
+    4. Retry loading the plugin or running commands.
+  - **Manual Fix**:
+    ```bash
+    mkdir -p ~/my-docs/docs/canvas
+    ```
+    Then re-run the export command.
 
 For issues, check the repository: [https://github.com/mediaprophet/obsidian-semantic-weaver](https://github.com/mediaprophet/obsidian-semantic-weaver).

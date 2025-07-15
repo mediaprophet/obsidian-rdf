@@ -1,5 +1,5 @@
 import { ItemView, WorkspaceLeaf } from 'obsidian';
-import * as cytoscape from 'cytoscape';
+import cytoscape from 'cytoscape';
 import { RDFPlugin } from '../main';
 
 export const VIEW_TYPE_RDF_GRAPH = 'rdf-graph';
