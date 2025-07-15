@@ -2,13 +2,14 @@ import { App, Notice, TFile } from 'obsidian';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as N3 from 'n3';
-import { markdownld, validateSHACL } from 'markdown-ld';
 import { RDFPlugin } from '../main';
+import { MarkdownLDModal } from '../modals/MarkdownLDModal';
 
 const { namedNode, literal, quad } = N3.DataFactory;
 
 export async function loadOntology(app: App): Promise<string> {
-  const ontologyPath = path.join(app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver', 'templates', 'ontology.ttl').replace(/\\/g, '/');
+  const pluginDir = app.plugins.plugins['semantic-weaver']?.manifest.dir || path.join(app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver').replace(/\\/g, '/');
+  const ontologyPath = path.join(pluginDir, 'templates', 'ontology.ttl').replace(/\\/g, '/');
   try {
     return await fs.promises.readFile(ontologyPath, 'utf-8');
   } catch {
@@ -22,50 +23,18 @@ export async function loadOntology(app: App): Promise<string> {
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix schema: <http://schema.org/> .
 
-ex:similarTo a owl:ObjectProperty ;
-  rdfs:label "Similar To" .
-
-ex:unRelatedTo a owl:ObjectProperty ;
-  rdfs:label "Unrelated To" .
-
-ex:differentTo a owl:ObjectProperty ;
-  rdfs:label "Different To" .
-
-ex:refersTo a rdfs:Property ;
-  rdfs:label "Refers To" ;
-  schema:domainIncludes rdfs:Resource ;
-  schema:rangeIncludes rdfs:Resource .
-
-doc:category a rdf:Property ;
-  rdfs:label "Category" ;
-  rdfs:domain doc:Document ;
-  rdfs:range rdfs:Literal .
-
-doc:author a rdf:Property ;
-  rdfs:label "Author" ;
-  rdfs:domain doc:Document ;
-  rdfs:range ex:Person .
-
-doc:related a rdf:Property ;
-  rdfs:label "Related" ;
-  rdfs:domain doc:Document ;
-  rdfs:range doc:Document .
-
-doc:created a rdf:Property ;
-  rdfs:label "Created Date" ;
-  rdfs:domain doc:Document ;
-  rdfs:range rdfs:Literal .
-
-doc:version a rdf:Property ;
-  rdfs:label "Version" ;
-  rdfs:domain doc:Document ;
-  rdfs:range rdfs:Literal .
-
-doc:Document a rdfs:Class ;
-  rdfs:label "Document" .
-
-ex:Person a rdfs:Class ;
-  rdfs:label "Person" .
+ex:similarTo a owl:ObjectProperty ; rdfs:label "Similar To" .
+ex:unRelatedTo a owl:ObjectProperty ; rdfs:label "Unrelated To" .
+ex:differentTo a owl:ObjectProperty ; rdfs:label "Different To" .
+ex:refersTo a rdfs:Property ; rdfs:label "Refers To" ; schema:domainIncludes rdfs:Resource ; schema:rangeIncludes rdfs:Resource .
+ex:certainty a rdf:Property ; rdfs:label "Certainty" ; schema:domainIncludes rdf:Statement ; schema:rangeIncludes rdfs:Literal .
+doc:category a rdf:Property ; rdfs:label "Category" ; rdfs:domain doc:Document ; rdfs:range rdfs:Literal .
+doc:author a rdf:Property ; rdfs:label "Author" ; rdfs:domain doc:Document ; rdfs:range ex:Person .
+doc:related a rdf:Property ; rdfs:label "Related" ; rdfs:domain doc:Document ; rdfs:range doc:Document .
+doc:created a rdf:Property ; rdfs:label "Created Date" ; rdfs:domain doc:Document ; rdfs:range rdfs:Literal .
+doc:version a rdf:Property ; rdfs:label "Version" ; rdfs:domain doc:Document ; rdfs:range rdfs:Literal .
+doc:Document a rdfs:Class ; rdfs:label "Document" .
+ex:Person a rdfs:Class ; rdfs:label "Person" .
 `;
     await fs.promises.mkdir(path.dirname(ontologyPath), { recursive: true });
     await fs.promises.writeFile(ontologyPath, defaultTtl);
@@ -74,7 +43,8 @@ ex:Person a rdfs:Class ;
 }
 
 export async function loadProjectTTL(app: App, store: N3.Store): Promise<void> {
-  const projectPath = path.join(app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver', 'templates', 'project.ttl').replace(/\\/g, '/');
+  const pluginDir = app.plugins.plugins['semantic-weaver']?.manifest.dir || path.join(app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver').replace(/\\/g, '/');
+  const projectPath = path.join(pluginDir, 'templates', 'project.ttl').replace(/\\/g, '/');
   if (await fs.promises.access(projectPath).then(() => true).catch(() => false)) {
     try {
       const content = await fs.promises.readFile(projectPath, 'utf-8');
@@ -95,24 +65,32 @@ export async function loadProjectTTL(app: App, store: N3.Store): Promise<void> {
 }
 
 export async function loadMarkdownOntologies(app: App, store: N3.Store): Promise<void> {
-  const ontologyFolder = path.join(app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver', 'templates', 'ontology').replace(/\\/g, '/');
+  const pluginDir = app.plugins.plugins['semantic-weaver']?.manifest.dir || path.join(app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver').replace(/\\/g, '/');
+  const ontologyFolder = path.join(pluginDir, 'templates', 'ontology').replace(/\\/g, '/');
   try {
     await fs.promises.access(ontologyFolder);
     const files = await fs.promises.readdir(ontologyFolder);
     for (const file of files.filter(f => f.endsWith('.md'))) {
       const content = await fs.promises.readFile(path.join(ontologyFolder, file), 'utf-8');
-      const jsonld = markdownld(content);
-      const parser = new N3.Parser({ format: 'application/ld+json' });
-      const quads = await new Promise<N3.Quad[]>((resolve, reject) => {
-        const quads: N3.Quad[] = [];
-        parser.parse(jsonld, (error, quad, prefixes) => {
-          if (error) reject(error);
-          if (quad) quads.push(quad);
-          else resolve(quads);
+      try {
+        const plugin = app.plugins.plugins['semantic-weaver'] as RDFPlugin;
+        const modal = new MarkdownLDModal(app, plugin, null, async () => {});
+        const { graph } = modal.parseMarkdownLD(content);
+        const parser = new N3.Parser({ format: 'application/ld+json' });
+        const quads = await new Promise<N3.Quad[]>((resolve, reject) => {
+          const quads: N3.Quad[] = [];
+          parser.parse(JSON.stringify(graph), (error, quad, prefixes) => {
+            if (error) reject(error);
+            if (quad) quads.push(quad);
+            else resolve(quads);
+          });
         });
-      });
-      await store.addQuads(quads);
-      new Notice(`Loaded Markdown ontology: ${file}`);
+        await store.addQuads(quads);
+        new Notice(`Loaded Markdown ontology: ${file}`);
+      } catch (error) {
+        new Notice(`Failed to parse Markdown-LD in ${file}: ${error.message}`);
+        console.error(error);
+      }
     }
   } catch (error) {
     if (error.code === 'ENOENT') {
@@ -142,10 +120,15 @@ export async function canvasToMermaid(plugin: RDFPlugin, canvasData: any): Promi
   }
   for (const node of canvasData.nodes) {
     const nodeId = node.url ? node.url.split('/').pop().replace(/[^a-zA-Z0-9_]/g, '_') : node.id;
-    if (nodes.has(nodeId) && node.properties?.category) {
-      mermaidCode += `  ${nodeId}["${nodeId}<br>${node.properties.category}"];\n`;
+    if (nodes.has(nodeId)) {
+      const label = node.properties?.category || node.id;
+      const classDef = node.type === 'http://example.org/doc/Document' ? ':::document' : 
+                      node.type === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement' ? ':::statement' : '';
+      mermaidCode += `  ${nodeId}["${label}${node.properties?.certainty ? '<br>certainty: ' + node.properties.certainty : ''}"]${classDef};\n`;
     }
   }
+  mermaidCode += '\nclassDef document fill:#f9f,stroke:#333,stroke-width:2px;';
+  mermaidCode += '\nclassDef statement fill:#bbf,stroke:#333,stroke-width:2px;';
   return mermaidCode;
 }
 
@@ -245,7 +228,7 @@ export async function exportCanvasToRDF(plugin: RDFPlugin, canvasFile: TFile, fo
     if (node.url && node.url.includes('#')) {
       const fragment = node.url.split('#')[1];
       quads.push(quad(
-        namedNode(node.url),
+        namedNode(nodeUri),
         namedNode('http://schema.org/section'),
         literal(fragment)
       ));
@@ -261,7 +244,6 @@ export async function exportCanvasToRDF(plugin: RDFPlugin, canvasFile: TFile, fo
       quads.push(quad(namedNode(fromUri), namedNode(predicate), namedNode(toUri)));
     }
   }
-
   if (format === 'jsonld') {
     const writer = new N3.Writer({ format: 'application/ld+json' });
     quads.forEach(q => writer.addQuad(q));
@@ -271,7 +253,7 @@ export async function exportCanvasToRDF(plugin: RDFPlugin, canvasFile: TFile, fo
         else resolve(result);
       });
     });
-  } else if (format === 'turtle') {
+  } else {
     const writer = new N3.Writer({ format: 'Turtle' });
     quads.forEach(q => writer.addQuad(q));
     return new Promise<string>((resolve, reject) => {
@@ -281,129 +263,90 @@ export async function exportCanvasToRDF(plugin: RDFPlugin, canvasFile: TFile, fo
       });
     });
   }
-  return '';
 }
 
-export async function fetchOntologyTerms(store: N3.Store): Promise<{ uri: string, label: string }[]> {
-  const query = `
-    SELECT ?uri ?label WHERE {
-      ?uri a <http://www.w3.org/2002/07/owl#Class> .
-      ?uri <http://www.w3.org/2000/01/rdf-schema#label> ?label .
+export async function copyJsFiles(plugin: RDFPlugin, pluginDir: string, exportDir: string): Promise<void> {
+  const srcJsDir = path.join(pluginDir, 'js').replace(/\\/g, '/');
+  const destJsDir = path.join(exportDir, 'docs', 'js').replace(/\\/g, '/');
+  try {
+    await fs.promises.access(srcJsDir);
+    await fs.promises.mkdir(destJsDir, { recursive: true });
+    const files = ['faceted-search.js', 'rdf-graph.js', 'rdf-render.js'];
+    for (const file of files) {
+      const srcPath = path.join(srcJsDir, file).replace(/\\/g, '/');
+      const destPath = path.join(destJsDir, file).replace(/\\/g, '/');
+      if (await fs.promises.access(srcPath).then(() => true).catch(() => false)) {
+        await fs.promises.copyFile(srcPath, destPath);
+        new Notice(`Copied ${file} to ${destJsDir}`);
+      } else {
+        new Notice(`Warning: ${file} not found in ${srcJsDir}`);
+      }
     }
-  `;
-  const results = [];
-  for await (const binding of store.query(query)) {
-    results.push({
-      uri: binding.get('uri')?.value,
-      label: binding.get('label')?.value
-    });
+  } catch (error) {
+    new Notice(`Failed to copy JS files: ${error.message}`);
+    console.error(error);
   }
-  return results;
 }
 
-export async function extractCMLDMetadata(content: string): { [key: string]: string } {
-  const metadata: { [key: string]: string } = {};
-  const cmlPattern = /(@doc\s+\[(.*?)\]\s*.*?)(?=\n\[|\n@doc|\Z)/s;
-  const match = content.match(cmlPattern);
-  if (match) {
-    const properties = match[2].trim().split(';').map(p => p.trim()).filter(p => p && p.includes(':'));
-    for (const pair of properties) {
-      const [key, value] = pair.split(':', 2).map(s => s.trim());
-      metadata[key] = value.replace(/^\[|\]$/g, '').replace(/^"|"$/g, '');
+export async function copyDocs(plugin: RDFPlugin, pluginDir: string, exportDir: string): Promise<void> {
+  const srcDocsDir = path.join(pluginDir, 'templates').replace(/\\/g, '/');
+  const destDocsDir = path.join(exportDir, 'docs').replace(/\\/g, '/');
+  try {
+    await fs.promises.access(srcDocsDir);
+    await fs.promises.mkdir(destDocsDir, { recursive: true });
+    const files = await fs.promises.readdir(srcDocsDir);
+    for (const file of files.filter(f => f.endsWith('.md') || f.endsWith('.yml'))) {
+      const srcPath = path.join(srcDocsDir, file).replace(/\\/g, '/');
+      const destPath = path.join(destDocsDir, file).replace(/\\/g, '/');
+      await fs.promises.copyFile(srcPath, destPath);
+      new Notice(`Copied ${file} to ${destDocsDir}`);
     }
+    const tutorialsDir = path.join(srcDocsDir, 'tutorials').replace(/\\/g, '/');
+    const destTutorialsDir = path.join(destDocsDir, 'tutorials').replace(/\\/g, '/');
+    if (await fs.promises.access(tutorialsDir).then(() => true).catch(() => false)) {
+      await fs.promises.mkdir(destTutorialsDir, { recursive: true });
+      const tutorialFiles = await fs.promises.readdir(tutorialsDir);
+      for (const file of tutorialFiles.filter(f => f.endsWith('.md'))) {
+        const srcPath = path.join(tutorialsDir, file).replace(/\\/g, '/');
+        const destPath = path.join(destTutorialsDir, file).replace(/\\/g, '/');
+        await fs.promises.copyFile(srcPath, destPath);
+        new Notice(`Copied tutorial ${file} to ${destTutorialsDir}`);
+      }
+    }
+  } catch (error) {
+    new Notice(`Failed to copy docs: ${error.message}`);
+    console.error(error);
   }
-  return metadata;
 }
 
-export async function updateCMLDMetadata(app: App, file: TFile, metadata: { [key: string]: string }) {
-  const content = await app.vault.read(file);
-  const cmlPattern = /(@doc\s+\[.*?\]\s*.*?)(?=\n\[|\n@doc|\Z)/s;
-  const newCMLD = `@doc [${file.basename}] ${Object.entries(metadata)
-    .filter(([_, v]) => v)
-    .map(([k, v]) => `${k}: ${v.startsWith('http') ? `[${v.split('/').pop()}]` : `"${v}"`}`)
-    .join('; ')}.`;
-  let updatedContent;
-  if (content.match(cmlPattern)) {
-    updatedContent = content.replace(cmlPattern, newCMLD);
-  } else {
-    updatedContent = `${content}\n\n${newCMLD}`;
-  }
-  await app.vault.modify(file, updatedContent);
-}
-
-export async function deployToGitHub(plugin: RDFPlugin, exportDir: string) {
+export async function deployToGitHub(plugin: RDFPlugin, exportDir: string): Promise<void> {
   const { githubRepo } = plugin.settings;
   if (!githubRepo) {
-    throw new Error('GitHub repository not specified.');
+    new Notice('GitHub repository not configured. Set in Settings > Semantic Weaver Settings.');
+    return;
   }
   try {
-    process.chdir(exportDir);
-    child_process.execSync('git init', { stdio: 'inherit' });
-    child_process.execSync('git add .', { stdio: 'inherit' });
-    child_process.execSync('git commit -m "Export RDF docs with Semantic Weaver"', { stdio: 'inherit' });
-    child_process.execSync(`git remote add origin https://github.com/${githubRepo}.git`, { stdio: 'inherit' });
-    child_process.execSync('git push -f origin main', { stdio: 'inherit' });
-    new Notice(`Pushed to GitHub repository ${githubRepo} by Semantic Weaver`);
+    const gitDir = path.join(exportDir, '.git').replace(/\\/g, '/');
+    if (!await fs.promises.access(gitDir).then(() => true).catch(() => false)) {
+      await fs.promises.mkdir(exportDir, { recursive: true });
+      await require('child_process').execSync(`git init`, { cwd: exportDir });
+      await require('child_process').execSync(`git remote add origin ${githubRepo}`, { cwd: exportDir });
+    }
+    await require('child_process').execSync(`git add .`, { cwd: exportDir });
+    await require('child_process').execSync(`git commit -m "Deploy RDF docs to GitHub Pages"`, { cwd: exportDir });
+    await require('child_process').execSync(`git push -f origin main`, { cwd: exportDir });
+    new Notice(`Deployed RDF docs to ${githubRepo}`);
   } catch (error) {
-    throw new Error(`Failed to push to GitHub: ${error.message}`);
+    new Notice(`Failed to deploy to GitHub: ${error.message}`);
+    console.error(error);
   }
 }
 
 export async function generateProjectTTL(plugin: RDFPlugin): Promise<string> {
+  const store = plugin.rdfStore;
   const writer = new N3.Writer({ format: 'Turtle' });
-  writer.addQuad(
-    quad(
-      namedNode(`http://example.org/project/${plugin.app.vault.getName()}`),
-      namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
-      namedNode('http://usefulinc.com/ns/doap#Project')
-    )
-  );
-  writer.addQuad(
-    quad(
-      namedNode(`http://example.org/project/${plugin.app.vault.getName()}`),
-      namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
-      namedNode('http://schema.org/SoftwareApplication')
-    )
-  );
-  writer.addQuad(
-    quad(
-      namedNode(`http://example.org/project/${plugin.app.vault.getName()}`),
-      namedNode('http://purl.org/dc/elements/1.1/title'),
-      literal(plugin.app.vault.getName())
-    )
-  );
-  writer.addQuad(
-    quad(
-      namedNode(`http://example.org/project/${plugin.app.vault.getName()}`),
-      namedNode('http://purl.org/dc/elements/1.1/creator'),
-      literal('Semantic Weaver')
-    )
-  );
-  writer.addQuad(
-    quad(
-      namedNode(`http://example.org/project/${plugin.app.vault.getName()}`),
-      namedNode('http://purl.org/dc/elements/1.1/date'),
-      literal('2025-07-15')
-    )
-  );
-  if (plugin.settings.siteUrl) {
-    writer.addQuad(
-      quad(
-        namedNode(`http://example.org/project/${plugin.app.vault.getName()}`),
-        namedNode('http://usefulinc.com/ns/doap#homepage'),
-        namedNode(plugin.settings.siteUrl)
-      )
-    );
-  }
-  if (plugin.settings.githubRepo) {
-    writer.addQuad(
-      quad(
-        namedNode(`http://example.org/project/${plugin.app.vault.getName()}`),
-        namedNode('http://usefulinc.com/ns/doap#repository'),
-        namedNode(`https://github.com/${plugin.settings.githubRepo}`)
-      )
-    );
-  }
+  const quads = store.getQuads(null, null, null);
+  quads.forEach(q => writer.addQuad(q));
   return new Promise<string>((resolve, reject) => {
     writer.end((error, result) => {
       if (error) reject(error);
@@ -412,56 +355,42 @@ export async function generateProjectTTL(plugin: RDFPlugin): Promise<string> {
   });
 }
 
-export async function copyDocs(plugin: RDFPlugin, pluginDir: string, exportDir: string, includeTests: boolean = false) {
-  const templateFiles = [
-    'mkdocs.yml',
-    'getting-started.md',
-    'tutorials/semantic-canvas.md',
-    'tutorials/authoring-cml-cmld.md',
-    'tutorials/metadata-ui.md',
-    'tutorials/mermaid-diagrams.md',
-    'tutorials/faceted-search.md',
-    'tutorials/deployment.md',
-    'tutorials/rdf-graph.md',
-    'github-action.yml',
-    'semantic-weaver-functional-spec.md',
-    'server.js',
-    'SemanticSyncGuide.md',
-    'SemanticSyncGuide.json',
-    'example-note.md',
-    'example-canvas.canvas'
-  ];
-  for (const file of templateFiles) {
-    const srcPath = path.join(pluginDir, 'templates', file).replace(/\\/g, '/');
-    const destPath = path.join(exportDir, file).replace(/\\/g, '/');
-    try {
-      await fs.promises.mkdir(path.dirname(destPath), { recursive: true });
-      await fs.promises.copyFile(srcPath, destPath);
-    } catch (error) {
-      new Notice(`Failed to copy template ${file}: ${error.message}`);
+export function extractCMLDMetadata(content: string): { [key: string]: string } {
+  const metadata: { [key: string]: string } = {};
+  const cmlPattern = /(@doc\s+)?\[(.*?)\]\s*(.*?)(?=\n\[|\n@doc|\Z)/gs;
+  const matches = content.matchAll(cmlPattern);
+  for (const match of matches) {
+    if (match[1]) {
+      const properties = match[3].trim();
+      const propPairs = properties.split(';').map(p => p.trim()).filter(p => p && p.includes(':'));
+      for (const pair of propPairs) {
+        const [key, value] = pair.split(':', 2).map(s => s.trim());
+        metadata[key] = value.replace(/^"|"$/g, '');
+      }
     }
   }
-  if (includeTests) {
-    const testFiles = await fs.promises.readdir(path.join(pluginDir, 'tests'), { recursive: true });
-    for (const file of testFiles) {
-      const srcPath = path.join(pluginDir, 'tests', file).replace(/\\/g, '/');
-      const destPath = path.join(exportDir, 'docs', 'tests', file).replace(/\\/g, '/');
-      await fs.promises.mkdir(path.dirname(destPath), { recursive: true });
-      await fs.promises.copyFile(srcPath, destPath);
-    }
-  }
+  return metadata;
 }
 
-export async function copyJsFiles(plugin: RDFPlugin, pluginDir: string, exportDir: string) {
-  const jsFiles = ['rdf-render.js', 'faceted-search.js', 'rdf-graph.js'];
-  for (const file of jsFiles) {
-    const srcPath = path.join(pluginDir, 'js', file).replace(/\\/g, '/');
-    const destPath = path.join(exportDir, 'docs', 'js', file).replace(/\\/g, '/');
-    try {
-      await fs.promises.mkdir(path.dirname(destPath), { recursive: true });
-      await fs.promises.copyFile(srcPath, destPath);
-    } catch (error) {
-      new Notice(`Failed to copy JS file ${file}: ${error.message}`);
+export async function updateCMLDMetadata(app: App, file: TFile, newMetadata: { [key: string]: string }): Promise<void> {
+  let content = await app.vault.read(file);
+  const cmlPattern = /(@doc\s+)?\[(.*?)\]\s*(.*?)(?=\n\[|\n@doc|\Z)/gs;
+  let updated = false;
+  content = content.replace(cmlPattern, (match, isDoc, subject, properties) => {
+    if (isDoc) {
+      updated = true;
+      const propString = Object.entries(newMetadata)
+        .map(([key, value]) => `${key}: "${value}"`)
+        .join('; ');
+      return `@doc [${subject}] ${propString}`;
     }
+    return match;
+  });
+  if (!updated) {
+    const propString = Object.entries(newMetadata)
+      .map(([key, value]) => `${key}: "${value}"`)
+      .join('; ');
+    content = `@doc [${file.basename}] ${propString}\n\n${content}`;
   }
+  await app.vault.modify(file, content);
 }

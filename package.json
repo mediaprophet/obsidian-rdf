@@ -5,8 +5,7 @@
   "main": "main.js",
   "scripts": {
     "build": "node esbuild.config.mjs",
-    "dev": "node esbuild.config.mjs --watch",
-    "build:markdown-ld": "cd libs/markdown-ld && npm install && npm run build"
+    "dev": "node esbuild.config.mjs --watch"
   },
   "dependencies": {
     "n3": "^1.17.2",
@@ -15,11 +14,9 @@
     "unified": "^11.0.4",
     "remark-parse": "^11.0.0",
     "remark-stringify": "^11.0.0",
-    "@frogcat/ttl2jsonld": "^0.2.4",
-    "markdown-ld": "file:./libs/markdown-ld"
+    "@frogcat/ttl2jsonld": "^0.0.10"
   },
   "devDependencies": {
-    "@types/mermaid": "^10.9.1",
     "@types/node": "^20.14.12",
     "esbuild": "^0.23.0",
     "obsidian": "^1.6.7",

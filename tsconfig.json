@@ -9,11 +9,8 @@
     "moduleResolution": "node",
     "allowJs": true,
     "noEmit": false,
-    "types": ["node", "obsidian", "mermaid"],
-    "baseUrl": ".",
-    "paths": {
-      "markdown-ld": ["libs/markdown-ld/src/index.ts"]
-    }
+    "types": ["node", "obsidian"],
+    "baseUrl": "."
   },
   "include": [
     "main.ts",
@@ -21,13 +18,10 @@
     "views/*.ts",
     "settings/*.ts",
     "modals/*.ts",
-    "libs/markdown-ld/src/**/*.ts"
+    "js/*.js"
   ],
   "exclude": [
     "node_modules",
-    "dist",
-    "*.js",
-    "libs/markdown-ld/node_modules",
-    "libs/markdown-ld/dist"
+    "dist"
   ]
 }

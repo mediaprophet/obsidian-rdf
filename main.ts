@@ -3,7 +3,6 @@ import * as N3 from 'n3';
 import * as path from 'path';
 import * as fs from 'fs';
 import mermaid from 'mermaid';
-import { markdownld, validateSHACL } from 'markdown-ld';
 import { RDFPluginSettings, DEFAULT_SETTINGS, RDFPluginSettingTab } from './settings/RDFPluginSettings';
 import { RDFGraphView } from './views/RDFGraphView';
 import { MermaidView } from './views/MermaidView';
@@ -109,6 +108,41 @@ export default class RDFPlugin extends Plugin {
       });
     });
 
+    this.addRibbonIcon('code', 'Semantic Weaver: Parse Markdown-LD', () => {
+      import('./modals/MarkdownLDModal').then(({ MarkdownLDModal }) => {
+        new MarkdownLDModal(this.app, this, null, async (graph, turtle, constraints, file) => {
+          if (file) {
+            const parser = new N3.Parser({ format: 'Turtle' });
+            const quads = await new Promise<N3.Quad[]>((resolve, reject) => {
+              const quads: N3.Quad[] = [];
+              parser.parse(turtle, (error, quad, prefixes) => {
+                if (error) reject(error);
+                if (quad) quads.push(quad);
+                else resolve(quads);
+              });
+            });
+            await this.rdfStore.addQuads(quads);
+            new Notice(`Parsed Markdown-LD and updated RDF store for ${file.path}`);
+          } else {
+            const output = this.settings.outputFormat === 'jsonld' ? JSON.stringify(graph, null, 2) : turtle;
+            new Notice(`Parsed Markdown-LD:\n${output}`);
+          }
+          if (constraints.length > 0) {
+            import('./modals/MarkdownLDModal').then(({ MarkdownLDModal }) => {
+              const modal = new MarkdownLDModal(this.app, this, file, async () => {});
+              modal.validateSHACL(modal.markdownContent).then(results => {
+                if (results.length > 0) {
+                  new Notice(`SHACL validation errors: ${JSON.stringify(results)}`);
+                } else {
+                  new Notice('SHACL validation passed');
+                }
+              });
+            });
+          }
+        }, this.settings.outputFormat).open();
+      });
+    });
+
     this.registerEvent(this.app.workspace.on('file-menu', (menu, file) => {
       if (file.extension === 'canvas' && this.settings.semanticCanvasMode) {
         menu.addItem(item => item
@@ -146,6 +180,36 @@ export default class RDFPlugin extends Plugin {
               }).open();
             });
           }));
+
+        menu.addItem(item => item
+          .setTitle('Parse Markdown-LD')
+          .setIcon('code')
+          .onClick(() => {
+            import('./modals/MarkdownLDModal').then(({ MarkdownLDModal }) => {
+              new MarkdownLDModal(this.app, this, file, async (graph, turtle, constraints, file) => {
+                const parser = new N3.Parser({ format: 'Turtle' });
+                const quads = await new Promise<N3.Quad[]>((resolve, reject) => {
+                  const quads: N3.Quad[] = [];
+                  parser.parse(turtle, (error, quad, prefixes) => {
+                    if (error) reject(error);
+                    if (quad) quads.push(quad);
+                    else resolve(quads);
+                  });
+                });
+                await this.rdfStore.addQuads(quads);
+                new Notice(`Parsed Markdown-LD and updated RDF store for ${file.path}`);
+                if (constraints.length > 0) {
+                  const modal = new MarkdownLDModal(this.app, this, file, async () => {}, this.settings.outputFormat);
+                  const results = await modal.validateSHACL(modal.markdownContent);
+                  if (results.length > 0) {
+                    new Notice(`SHACL validation errors: ${JSON.stringify(results)}`);
+                  } else {
+                    new Notice('SHACL validation passed');
+                  }
+                }
+              }, this.settings.outputFormat).open();
+            });
+          }));
       }
     }));
 
@@ -169,6 +233,19 @@ export default class RDFPlugin extends Plugin {
               new URILookupModal(this.app, this.settings.namespaces, this.ontologyTtl, async uri => {
                 editor.replaceSelection(`[${uri.split('/').pop()}]`);
                 new Notice(`Inserted URI: ${uri} by Semantic Weaver`);
+              }).open();
+            });
+          }));
+
+        menu.addItem(item => item
+          .setTitle('Add Annotation')
+          .setIcon('note')
+          .onClick(() => {
+            import('./modals/AnnotationModal').then(({ AnnotationModal }) => {
+              new AnnotationModal(this.app, selection, async annotation => {
+                const wrapped = `<<[${selection}] oa:hasBody "${annotation}">>`;
+                editor.replaceSelection(wrapped);
+                new Notice('Annotation added by Semantic Weaver.');
               }).open();
             });
           }));
@@ -240,12 +317,16 @@ export default class RDFPlugin extends Plugin {
           const files = await fs.promises.readdir(ontologyFolder);
           for (const file of files.filter(f => f.endsWith('.shacl.md'))) {
             const content = await fs.promises.readFile(path.join(ontologyFolder, file), 'utf-8');
-            const results = await validateSHACL(content, this.rdfStore);
-            if (results.length > 0) {
-              new Notice(`SHACL validation errors in ${file}: ${JSON.stringify(results)}`);
-            } else {
-              new Notice(`SHACL validation passed for ${file}`);
-            }
+            import('./modals/MarkdownLDModal').then(({ MarkdownLDModal }) => {
+              const modal = new MarkdownLDModal(this.app, this, null, async () => {}, this.settings.outputFormat);
+              modal.validateSHACL(content).then(results => {
+                if (results.length > 0) {
+                  new Notice(`SHACL validation errors in ${file}: ${JSON.stringify(results)}`);
+                } else {
+                  new Notice(`SHACL validation passed for ${file}`);
+                }
+              });
+            });
           }
         } catch (error) {
           new Notice(`Failed to validate RDF data: ${error.message}`);
@@ -411,7 +492,7 @@ export default class RDFPlugin extends Plugin {
   }
 
   async exportDocs() {
-    const { exportDir, githubRepo } = this.settings;
+    const { exportDir, githubRepo, githubToken } = this.settings;
     const pluginDir = this.manifest.dir || path.join(this.app.vault.adapter.basePath, '.obsidian', 'plugins', 'semantic-weaver').replace(/\\/g, '/');
     await copyDocs(this, pluginDir, exportDir);
     await copyJsFiles(this, pluginDir, exportDir);
@@ -437,13 +518,18 @@ export default class RDFPlugin extends Plugin {
       for (const file of ontologyFiles.filter(f => f.endsWith('.md'))) {
         const content = await fs.promises.readFile(path.join(ontologyFolder, file), 'utf-8');
         try {
-          const { graph } = markdownld(content);
-          const turtle = await markdownldToTurtle(content);
-          const turtlePath = path.join(exportDir, 'docs', 'ontology', `${file.replace('.md', '.ttl')}`).replace(/\\/g, '/');
-          const jsonldPath = path.join(exportDir, 'docs', 'ontology', `${file.replace('.md', '.jsonld')}`).replace(/\\/g, '/');
-          await fs.promises.mkdir(path.dirname(turtlePath), { recursive: true });
-          await fs.promises.writeFile(turtlePath, turtle);
-          await fs.promises.writeFile(jsonldPath, JSON.stringify(graph, null, 2));
+          import('./modals/MarkdownLDModal').then(({ MarkdownLDModal }) => {
+            const modal = new MarkdownLDModal(this.app, this, null, async () => {}, this.settings.outputFormat);
+            const { graph } = modal.parseMarkdownLD(content);
+            modal.markdownLDToTurtle(content).then(turtle => {
+              const turtlePath = path.join(exportDir, 'docs', 'ontology', `${file.replace('.md', '.ttl')}`).replace(/\\/g, '/');
+              const jsonldPath = path.join(exportDir, 'docs', 'ontology', `${file.replace('.md', '.jsonld')}`).replace(/\\/g, '/');
+              fs.promises.mkdir(path.dirname(turtlePath), { recursive: true }).then(() => {
+                fs.promises.writeFile(turtlePath, turtle);
+                fs.promises.writeFile(jsonldPath, JSON.stringify(graph, null, 2));
+              });
+            });
+          });
         } catch (error) {
           new Notice(`Failed to convert Markdown-LD file ${file}: ${error.message}`);
           console.error(error);
