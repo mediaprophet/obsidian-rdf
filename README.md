@@ -10,8 +10,10 @@
 - **SPARQL Queries**: Run SPARQL queries on canvas data to extract insights.
 - **RDF Graph Visualization**: View RDF data as interactive graphs using Cytoscape.
 - **Export to MkDocs**: Generate RDF-enhanced documentation sites with JSON-LD, Turtle, and RDF/XML outputs.
-- **Solid Pod Integration**: Publish RDF data to Solid Pods (requires optional dependencies).
 - **GitHub Pages Deployment**: Deploy documentation to GitHub Pages with a single command.
+
+## Future Goals
+- **Solid Pod Integration**: Publish RDF data to Solid Pods (requires optional dependencies).
 
 ## Installation
 
@@ -63,13 +65,6 @@ For detailed installation instructions, including setting up the `./ontology/` f
      ```
      Open `http://localhost:8000`.
 
-7. **Solid Pod Support** (Optional):
-   - Install optional dependencies:
-     ```bash
-     npm install @comunica/query-sparql-solid@4.3.0 @inrupt/solid-client-authn-browser@2.0.0
-     ```
-   - Use the **Semantic Weaver: Solid Pod Login** ribbon icon to log in and publish RDF data.
-
 ## File Structure
 
 The plugin expects the following structure in `your-vault/.obsidian/plugins/semantic-weaver/`:
@@ -86,7 +81,6 @@ semantic-weaver/
 │   ├── ExportConfigModal.ts
 │   ├── CMLDMetadataModal.ts
 │   ├── NamespaceOntologyModal.ts
-│   ├── SolidPodModal.ts
 │   ├── SemanticCanvasModal.ts
 │   ├── SemanticEdgeModal.ts
 │   ├── SPARQLQueryModal.ts
