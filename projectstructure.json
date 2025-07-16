@@ -1,0 +1,136 @@
+{
+  "name": "semantic-weaver",
+  "description": "Obsidian plugin for managing RDF-based ontologies, semantic annotation, visualization, and export.",
+  "structure": [
+    {
+      "path": "main.ts",
+      "type": "typescript",
+      "description": "Plugin entry point. Handles lifecycle, settings, RDF logic, UI commands, and event registration."
+    },
+    {
+      "path": "manifest.json",
+      "type": "json",
+      "description": "Obsidian plugin manifest. Declares plugin id, name, version, and compatibility."
+    },
+    {
+      "path": "package.json",
+      "type": "json",
+      "description": "NPM package manifest. Lists dependencies, scripts, and metadata for build and development."
+    },
+    {
+      "path": "tsconfig.json",
+      "type": "jsonc",
+      "description": "TypeScript configuration. Sets compiler options and included/excluded files."
+    },
+    {
+      "path": "esbuild.config.js",
+      "type": "js",
+      "description": "Build configuration for esbuild. Transpiles TypeScript to JavaScript for plugin distribution."
+    },
+    {
+      "path": "styles.css",
+      "type": "css",
+      "description": "Custom styles for Semantic Weaver modals, views, and UI components. Supports light/dark themes."
+    },
+    {
+      "path": "utils/RDFUtils.ts",
+      "type": "typescript",
+      "description": "Utility functions for RDF parsing, ontology loading, CML/CMLD parsing, export, and GitHub deployment."
+    },
+    {
+      "path": "settings/RDFPluginSettings.ts",
+      "type": "typescript",
+      "description": "Settings interface, default values, and settings tab for plugin configuration in Obsidian."
+    },
+    {
+      "path": "views/RDFGraphView.ts",
+      "type": "typescript",
+      "description": "Obsidian ItemView for interactive RDF graph visualization (2D/3D) using Cytoscape and ForceGraph3D."
+    },
+    {
+      "path": "views/MermaidView.ts",
+      "type": "typescript",
+      "description": "Obsidian ItemView for visualizing RDF/canvas data as Mermaid diagrams."
+    },
+    {
+      "path": "modals/AnnotationModal.ts",
+      "type": "typescript",
+      "description": "Modal dialog for adding RDF-Star or semantic annotations to selected text."
+    },
+    {
+      "path": "modals/CMLDMetadataModal.ts",
+      "type": "typescript",
+      "description": "Modal dialog for editing CMLD (Context Markup Language for Documentation) metadata in notes."
+    },
+    {
+      "path": "modals/ExportConfigModal.ts",
+      "type": "typescript",
+      "description": "Modal dialog for configuring export settings (GitHub repo, export dir, provider, etc.)."
+    },
+    {
+      "path": "modals/NamespaceOntologyModal.ts",
+      "type": "typescript",
+      "description": "Modal dialog for managing RDF namespaces and editing ontology Turtle."
+    },
+    {
+      "path": "modals/SemanticCanvasModal.ts",
+      "type": "typescript",
+      "description": "Modal dialog for editing semantic properties of canvas nodes."
+    },
+    {
+      "path": "modals/SemanticEdgeModal.ts",
+      "type": "typescript",
+      "description": "Modal dialog for editing semantic properties of canvas edges."
+    },
+    {
+      "path": "modals/SPARQLQueryModal.ts",
+      "type": "typescript",
+      "description": "Modal dialog for running SPARQL queries on canvas or RDF data."
+    },
+    {
+      "path": "modals/URILookupModal.ts",
+      "type": "typescript",
+      "description": "Modal dialog for looking up and inserting URIs from namespaces or ontology."
+    },
+    {
+      "path": "js/faceted-search.js",
+      "type": "javascript",
+      "description": "React component for faceted search UI over RDF-enhanced documents."
+    },
+    {
+      "path": "js/rdf-graph.js",
+      "type": "javascript",
+      "description": "React component for rendering RDF graphs using Cytoscape."
+    },
+    {
+      "path": "js/rdf-render.js",
+      "type": "javascript",
+      "description": "React component for rendering RDF triples as a table from JSON-LD."
+    },
+    {
+      "path": "templates/getting-started.md",
+      "type": "markdown",
+      "description": "Getting started guide for installing and using the plugin."
+    },
+    {
+      "path": "templates/mkdocs.yaml",
+      "type": "yaml",
+      "description": "MkDocs configuration for exporting documentation."
+    },
+    {
+      "path": "templates/tutorials/authoring-cml-cmld.md",
+      "type": "markdown",
+      "description": "Tutorial for authoring CML and CMLD in Markdown notes."
+    },
+    {
+      "path": "tests/tests_meta.rdf.json",
+      "type": "json",
+      "description": "Test RDF metadata in JSON format for validation and development."
+    },
+    {
+      "path": "tests/tests_page1.md",
+      "type": "markdown",
+      "description": "Test Markdown file with CML/CMLD and Mermaid diagram for plugin validation."
+    }
+  ]
+}

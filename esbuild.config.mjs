@@ -78,7 +78,7 @@ const context = await esbuild.context({
   external: [
     'obsidian',
     'electron',
-    'three', // Externalize three to prevent multiple instances
+    'three',
     '@codemirror/autocomplete',
     '@codemirror/collab',
     '@codemirror/commands',
@@ -93,8 +93,9 @@ const context = await esbuild.context({
   platform: 'browser',
   target: 'es2020',
   logLevel: 'info',
-  sourcemap: prod ? false : 'inline',
+  sourcemap: true, // Enable sourcemaps for debugging
   treeShaking: true,
+  minify: false,
   outfile: 'main.js',
   plugins: [nodeBuiltinsPlugin],
 });

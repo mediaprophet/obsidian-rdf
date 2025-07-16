@@ -1,6 +1,6 @@
 import { App, Modal, Setting, Notice, TextComponent } from 'obsidian';
-import { RDFPlugin } from '../main';
-import { SettingsManager } from '../settings/SettingsManager';
+import { RDFPlugin } from './main';
+import { SettingsManager } from './SettingsManager';
 
 export class NamespaceModal extends Modal {
   plugin: RDFPlugin;

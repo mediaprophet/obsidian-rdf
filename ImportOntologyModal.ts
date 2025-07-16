@@ -1,6 +1,7 @@
-import { App, Modal, Setting, Notice, TextComponent, requestUrl } from 'obsidian';
+import { App, Modal, Setting, Notice, TextComponent } from 'obsidian';
 import { RDFPlugin } from './main';
 import * as N3 from 'n3';
+const fetch = require('node-fetch').default;
 
 export class ImportOntologyModal extends Modal {
   plugin: RDFPlugin;
@@ -34,7 +35,7 @@ export class ImportOntologyModal extends Modal {
       'ex': 'http://example.org/'
     };
 
-    let uriInput: TextComponent;
+    // URI Input with Autocomplete
     new Setting(contentEl)
       .setName('Ontology URI')
       .setDesc('Enter the URI of the RDF ontology (e.g., http://xmlns.com/foaf/0.1/). Select a common namespace or type a custom URI.')
@@ -47,7 +48,7 @@ export class ImportOntologyModal extends Modal {
           uriInput.setValue(value);
         }))
       .addText(text => {
-        uriInput = text
+        const uriInput = text
           .setPlaceholder('http://example.org/ontology')
           .onChange(value => {
             uri = value.trim();
@@ -60,11 +61,11 @@ export class ImportOntologyModal extends Modal {
       });
 
     // Filename Input
-    let fileNameInput: TextComponent;
     const fileNameSetting = new Setting(contentEl)
       .setName('Output Filename')
       .setDesc('Name for the Markdown-LD file (without .md extension). Defaults to the URI basename.')
       .setClass('semantic-weaver-setting');
+    let fileNameInput: TextComponent;
     fileNameSetting.addText(text => {
       fileNameInput = text
         .setPlaceholder('imported-ontology')
@@ -108,11 +109,13 @@ export class ImportOntologyModal extends Modal {
           }
           try {
             validationEl.setText('Fetching ontology...');
-            const response = await requestUrl({
-              url: uri,
+            const response = await fetch(uri, {
               headers: { Accept: format === 'turtle' ? 'text/turtle' : 'application/ld+json' }
             });
-            const content = response.text;
+            if (!response.ok) {
+              throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+            }
+            const content = await response.text();
             const contentSizeMB = content.length / (1024 * 1024);
 
             if (contentSizeMB > 10) {
@@ -247,5 +250,3 @@ export class ImportOntologyModal extends Modal {
     this.contentEl.empty();
   }
 }
-
-export default ImportOntologyModal;
