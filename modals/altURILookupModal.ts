@@ -1,4 +1,4 @@
-import { App, Modal, Setting, TFile } from 'obsidian';
+import { App, Modal, Setting } from 'obsidian';
 import { Parser } from 'n3';
 
 export class URILookupModal extends Modal {
@@ -38,15 +38,12 @@ export class URILookupModal extends Modal {
           .onChange((value: string) => (this.suffix = value))
       );
 
-    // Use Obsidian Vault API to read ontology.ttl
+    // Parse the passed ontologyTtl string
     let ontologyUris: string[] = [];
-    const ontologyPath = 'templates/ontology.ttl';
-    const ontologyFile = this.app.vault.getAbstractFileByPath(ontologyPath);
-    if (ontologyFile instanceof TFile) {
+    if (this.ontologyTtl) {
       try {
-        const ttl = await this.app.vault.read(ontologyFile);
         const parser = new Parser({ format: 'Turtle' });
-        const quads = parser.parse(ttl);
+        const quads = parser.parse(this.ontologyTtl);
         const uris = new Set<string>();
         for (const q of quads) {
           if (q.subject.termType === 'NamedNode') {
@@ -58,11 +55,11 @@ export class URILookupModal extends Modal {
         }
         ontologyUris = Array.from(uris);
       } catch (e) {
-        console.error('Error reading or parsing ontology file:', e);
+        console.error('Error parsing ontology content:', e);
         ontologyUris = [];
       }
     } else {
-      console.warn('Ontology file not found:', ontologyPath);
+      console.warn('No ontology content provided');
     }
 
     new Setting(contentEl)
