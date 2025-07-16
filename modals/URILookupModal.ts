@@ -1,15 +1,10 @@
-
-import { App, Modal, Setting } from 'obsidian';
+import { App, Modal, Setting, TFile } from 'obsidian';
 import { Parser } from 'n3';
-import * as fs from 'fs';
-import * as path from 'path';
-
 
 export class URILookupModal extends Modal {
   namespaces: { [key: string]: string };
   ontologyTtl: string;
   onSubmit: (uri: string) => void;
-  // queryEngine: any;
   selectedPrefix: string = '';
   suffix: string = '';
   selectedUri: string = '';
@@ -19,9 +14,7 @@ export class URILookupModal extends Modal {
     this.namespaces = namespaces;
     this.ontologyTtl = ontologyTtl;
     this.onSubmit = onSubmit;
-    // this.queryEngine = ...
   }
-
 
   async onOpen() {
     const contentEl = this.contentEl;
@@ -44,35 +37,31 @@ export class URILookupModal extends Modal {
           .setPlaceholder('e.g., Alice')
           .onChange((value: string) => this.suffix = value));
 
-    // Use adapter's getFullPath to get the absolute path if available, else fallback
-    const adapter: any = this.app.vault.adapter;
-    let ontologyPath = '';
-    if (typeof adapter.getFullPath === 'function') {
-      ontologyPath = adapter.getFullPath('ontology/ontology.ttl');
-    } else if (adapter.basePath) {
-      ontologyPath = path.join(adapter.basePath, 'ontology', 'ontology.ttl');
-    } else {
-      ontologyPath = path.join('ontology', 'ontology.ttl');
-    }
-
-    // Use n3 to parse ontology.ttl and extract all subject URIs
+    // Use Obsidian's Vault API to read the ontology file
     let ontologyUris: string[] = [];
-    try {
-      const ttl = await fs.promises.readFile(ontologyPath, 'utf-8');
-      const parser = new Parser({ format: 'Turtle' });
-      const quads = parser.parse(ttl);
-      const uris = new Set<string>();
-      for (const q of quads) {
-        if (q.subject.termType === 'NamedNode') {
-          uris.add(q.subject.value);
+    const ontologyPath = 'ontology/ontology.ttl';
+    const ontologyFile = this.app.vault.getAbstractFileByPath(ontologyPath);
+    if (ontologyFile instanceof TFile) {
+      try {
+        const ttl = await this.app.vault.read(ontologyFile);
+        const parser = new Parser({ format: 'Turtle' });
+        const quads = parser.parse(ttl);
+        const uris = new Set<string>();
+        for (const q of quads) {
+          if (q.subject.termType === 'NamedNode') {
+            uris.add(q.subject.value);
+          }
+          if (q.object.termType === 'NamedNode') {
+            uris.add(q.object.value);
+          }
         }
-        if (q.object.termType === 'NamedNode') {
-          uris.add(q.object.value);
-        }
+        ontologyUris = Array.from(uris);
+      } catch (e) {
+        ontologyUris = [];
+        console.error('Error reading or parsing ontology file:', e);
       }
-      ontologyUris = Array.from(uris);
-    } catch (e) {
-      ontologyUris = [];
+    } else {
+      console.error('Ontology file not found:', ontologyPath);
     }
 
     new Setting(contentEl)
