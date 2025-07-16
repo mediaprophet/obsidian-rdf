@@ -1,5 +1,5 @@
 import { ItemView, WorkspaceLeaf, TFile } from 'obsidian';
-import * as mermaid from 'mermaid';
+import mermaid from 'mermaid';
 import { RDFPlugin } from '../main';
 import { canvasToMermaid } from '../utils/RDFUtils';
 
@@ -56,7 +56,8 @@ export class MermaidView extends ItemView {
           const content = await this.app.vault.read(file);
           const canvasData = JSON.parse(content);
           const mermaidCode = await canvasToMermaid(this.plugin, canvasData);
-          const { svg } = await mermaid.default.render('mermaid-diagram', mermaidCode);
+          mermaid.initialize({ startOnLoad: true });
+          const { svg } = await mermaid.render('mermaid-diagram', mermaidCode);
           diagramDiv.innerHTML = svg;
         } catch (error) {
           diagramDiv.createEl('p', { text: `Error rendering Mermaid diagram: ${error.message}` });

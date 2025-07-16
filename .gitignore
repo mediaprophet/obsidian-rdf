@@ -16,7 +16,7 @@ styles.css
 # Export directory (user-specific)
 my-docs/
 docs/
-
+export/
 # Test outputs and temporary files
 tests/output/
 *.tmp

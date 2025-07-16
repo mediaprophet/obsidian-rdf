@@ -24,7 +24,7 @@ export const DEFAULT_SETTINGS: RDFPluginSettings = {
   githubRepo: '',
   githubToken: '',
   siteUrl: '',
-  exportDir: '',
+  exportDir: 'export',
   includeTests: false,
   outputFormat: 'turtle'
 };
@@ -77,7 +77,7 @@ export class RDFPluginSettingTab extends PluginSettingTab {
       .setName('Default Export Directory')
       .setDesc('Set the default directory for exporting MkDocs projects')
       .addText(text => text
-        .setPlaceholder('~/my-docs')
+        .setPlaceholder('export')
         .setValue(this.plugin.settings.exportDir)
         .onChange(async value => {
           this.plugin.settings.exportDir = value;

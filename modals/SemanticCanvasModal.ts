@@ -57,7 +57,20 @@ export class SemanticCanvasModal extends Modal {
       .addButton(button => button
         .setButtonText('Submit')
         .setCta()
-        .onClick(() => {
+        .onClick(async () => {
+          // Autonomous save: update node in canvas file
+          try {
+            const content = await this.app.vault.read(this.file);
+            const data = JSON.parse(content);
+            const node = data.nodes.find((n: any) => n.id === this.nodeId);
+            if (node) {
+              node.type = type;
+              node.properties = properties;
+              await this.app.vault.modify(this.file, JSON.stringify(data));
+            }
+          } catch (e) {
+            // Optionally handle error
+          }
           this.onSubmit(this.nodeId, type, properties);
           this.close();
         }));

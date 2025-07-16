@@ -10,7 +10,7 @@ export class SemanticEdgeModal extends Modal {
   customPredicate: string = '';
 
   constructor(app: App, plugin: RDFPlugin, canvasFile: TFile, onSubmit: (edgeId: string, predicate: string) => void) {
-    super();
+    super(app);
     this.plugin = plugin;
     this.canvasFile = canvasFile;
     this.onSubmit = onSubmit;
@@ -58,6 +58,18 @@ export class SemanticEdgeModal extends Modal {
         .setButtonText('Save')
         .onClick(async () => {
           if (this.edgeId && (this.predicate !== 'custom' || this.customPredicate)) {
+            // Autonomous save: update edge in canvas file
+            try {
+              const content = await this.app.vault.read(this.canvasFile);
+              const data = JSON.parse(content);
+              const edge = data.edges.find((e: any) => e.id === this.edgeId);
+              if (edge) {
+                edge.predicate = this.predicate === 'custom' ? this.customPredicate : this.predicate;
+                await this.app.vault.modify(this.canvasFile, JSON.stringify(data));
+              }
+            } catch (e) {
+              // Optionally handle error
+            }
             this.onSubmit(this.edgeId, this.predicate === 'custom' ? this.customPredicate : this.predicate);
             this.close();
           }

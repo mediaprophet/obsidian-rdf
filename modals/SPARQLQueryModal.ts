@@ -1,4 +1,4 @@
-import { App, Modal, Setting, TFile } from 'obsidian';
+import { App, Modal, Setting, TFile, Notice } from 'obsidian';
 import { RDFPlugin } from '../main';
 
 export class SPARQLQueryModal extends Modal {
@@ -8,7 +8,7 @@ export class SPARQLQueryModal extends Modal {
   query: string = '';
 
   constructor(app: App, plugin: RDFPlugin, canvasFile: TFile, onSubmit: (query: string) => void) {
-    super();
+    super(app);
     this.plugin = plugin;
     this.canvasFile = canvasFile;
     this.onSubmit = onSubmit;
@@ -30,6 +30,8 @@ export class SPARQLQueryModal extends Modal {
         .setButtonText('Run Query')
         .onClick(async () => {
           if (this.query) {
+            const results = await this.plugin.rdfUtils.executeSPARQL(this.plugin.rdfStore, this.query);
+            new Notice(JSON.stringify(results, null, 2)); // Using JSON.stringify with formatting
             this.onSubmit(this.query);
             this.close();
           }

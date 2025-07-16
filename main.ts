@@ -1,5 +1,5 @@
-import { Plugin, Notice, Menu, TFile } from 'obsidian';
-import { SettingsManager } from './settings/SettingsManager';
+import { Plugin, Notice, Menu, TFile, WorkspaceLeaf } from 'obsidian';
+import { SettingsManager, RDFPluginSettings, DEFAULT_SETTINGS } from './settings/SettingsManager';
 import { RDFStore } from './utils/RDFStore';
 import { ImportOntologyModal } from './modals/ImportOntologyModal';
 import { NamespaceModal } from './modals/NamespaceModal';
@@ -10,10 +10,9 @@ import { SemanticCanvasModal } from './modals/SemanticCanvasModal';
 import { SemanticEdgeModal } from './modals/SemanticEdgeModal';
 import { SPARQLQueryModal } from './modals/SPARQLQueryModal';
 import { URILookupModal } from './modals/URILookupModal';
-import { RDFGraphView } from './views/RDFGraphView';
-import { MermaidView } from './views/MermaidView';
+import { RDFGraphView, RDF_GRAPH_VIEW } from './views/RDFGraphView';
+import { MermaidView, MERMAID_VIEW_TYPE } from './views/MermaidView';
 import { RDFUtils } from './utils/RDFUtils';
-import { RDFPluginSettings, DEFAULT_SETTINGS } from './settings/RDFPluginSettings';
 
 export default class RDFPlugin extends Plugin {
   settingsManager: SettingsManager;
@@ -23,6 +22,7 @@ export default class RDFPlugin extends Plugin {
 
   async onload() {
     try {
+      console.log('Starting RDFPlugin onload');
       console.log('Initializing SettingsManager');
       this.settingsManager = new SettingsManager(this);
       console.log('Initializing RDFStore');
@@ -30,22 +30,67 @@ export default class RDFPlugin extends Plugin {
       console.log('Initializing RDFUtils');
       this.rdfUtils = new RDFUtils(this);
       console.log('Loading settings');
-      await this.settingsManager.loadSettings();
+      try {
+        await this.settingsManager.loadSettings();
+        console.log('Settings loaded:', this.settingsManager.getNamespaces());
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+        new Notice('Error loading plugin settings');
+      }
 
       console.log('Loading ontology.ttl');
-      await this.loadOntologyTtl();
+      try {
+        await this.loadOntologyTtl();
+        console.log('Ontology TTL loaded:', this.ontologyTtl.slice(0, 100) + '...');
+      } catch (error) {
+        console.error('Failed to load ontology:', error);
+        new Notice('Error loading ontology file');
+      }
 
       console.log('Importing demo documents');
-      await this.importDemoDocs();
+      try {
+        await this.importDemoDocs();
+        console.log('Demo documents imported');
+      } catch (error) {
+        console.error('Failed to import demo documents:', error);
+        new Notice('Error importing demo documents');
+      }
+
+      console.log('Registering views');
+      try {
+        this.registerViews();
+        console.log('Views registered');
+      } catch (error) {
+        console.error('Failed to register views:', error);
+        new Notice('Error registering views');
+      }
 
       console.log('Adding ribbon icons');
-      this.addRibbonIcons();
+      try {
+        this.addRibbonIcons();
+        console.log('Ribbon icons added');
+      } catch (error) {
+        console.error('Failed to add ribbon icons:', error);
+        new Notice('Error adding ribbon icons');
+      }
 
       console.log('Registering commands');
-      this.registerCommands();
+      try {
+        this.registerCommands();
+        console.log('Commands registered');
+      } catch (error) {
+        console.error('Failed to register commands:', error);
+        new Notice('Error registering commands');
+      }
 
       console.log('Registering context menu');
-      this.registerContextMenu();
+      try {
+        this.registerContextMenu();
+        console.log('Context menu registered');
+      } catch (error) {
+        console.error('Failed to register context menu:', error);
+        new Notice('Error registering context menu');
+      }
 
       console.log('Registering file modification event');
       this.registerEvent(
@@ -54,9 +99,9 @@ export default class RDFPlugin extends Plugin {
             try {
               await this.rdfStore.parseTurtleFile(this.app.vault, file);
               new Notice(`Parsed Turtle file: ${file.path}`);
-              // Reload ontologyTtl if the modified file is templates/ontology.ttl
               if (file.path === 'templates/ontology.ttl') {
                 await this.loadOntologyTtl();
+                console.log('Reloaded ontology TTL after modification');
               }
             } catch (error) {
               new Notice(`Error parsing Turtle file: ${error.message}`);
@@ -65,6 +110,7 @@ export default class RDFPlugin extends Plugin {
           }
         })
       );
+      console.log('RDFPlugin onload completed');
     } catch (error) {
       console.error('Error in RDFPlugin.onload:', error);
       new Notice(`Failed to load Semantic Weaver: ${error.message}`);
@@ -117,17 +163,37 @@ export default class RDFPlugin extends Plugin {
     }
   }
 
+  registerViews() {
+    console.log('Registering RDFGraphView');
+    this.registerView(RDF_GRAPH_VIEW, (leaf) => new RDFGraphView(leaf, this));
+    console.log('Registering MermaidView');
+    this.registerView(MERMAID_VIEW_TYPE, (leaf) => new MermaidView(leaf, this));
+  }
+
   // Helper function to open modals with error handling
   private openModal(modal: new (...args: any[]) => any, ...args: any[]) {
     try {
       new modal(this.app, ...args).open();
+      console.log(`Opened modal: ${modal.name}`);
     } catch (error) {
       new Notice(`Error opening modal: ${error.message}`);
-      console.error(`Error opening modal:`, error);
+      console.error(`Error opening modal ${modal.name}:`, error);
+    }
+  }
+
+  private openView(viewType: string) {
+    try {
+      const leaf = this.app.workspace.getLeaf('tab');
+      leaf.setViewState({ type: viewType, active: true });
+      console.log(`Opened view: ${viewType}`);
+    } catch (error) {
+      new Notice(`Error opening view ${viewType}: ${error.message}`);
+      console.error(`Error opening view ${viewType}:`, error);
     }
   }
 
   addRibbonIcons() {
+    console.log('Adding Import Ontology ribbon icon');
     this.addRibbonIcon('ri-download-line', 'Import Ontology from URI', () => {
       console.log('Opening ImportOntologyModal from ribbon');
       this.openModal(ImportOntologyModal, this, (filePath: string) => {
@@ -135,6 +201,7 @@ export default class RDFPlugin extends Plugin {
       });
     });
 
+    console.log('Adding Manage RDF Namespaces ribbon icon');
     this.addRibbonIcon('ri-book-open-line', 'Manage RDF Namespaces', () => {
       console.log('Opening NamespaceModal from ribbon');
       this.openModal(NamespaceModal, this, () => {
@@ -142,77 +209,106 @@ export default class RDFPlugin extends Plugin {
       });
     });
 
+    console.log('Adding Add Annotation ribbon icon');
     this.addRibbonIcon('ri-edit-line', 'Add Annotation', () => {
+      const editor = this.app.workspace.activeEditor?.editor;
+      const selection = editor ? editor.getSelection() : '';
+      if (!selection) {
+        new Notice('No text selected for annotation');
+        return;
+      }
       console.log('Opening AnnotationModal from ribbon');
-      this.openModal(AnnotationModal, this, () => {
-        new Notice('Annotation added');
+      this.openModal(AnnotationModal, selection, (annotation: string) => {
+        new Notice('Annotation added: ' + annotation);
       });
     });
 
+    console.log('Adding Edit CMLD Metadata ribbon icon');
     this.addRibbonIcon('ri-file-text-line', 'Edit CMLD Metadata', () => {
-      console.log('Opening CMLDMetadataModal from ribbon');
-      this.openModal(CMLDMetadataModal, this, () => {
-        new Notice('CMLD metadata updated');
-      });
+      const file = this.app.workspace.getActiveFile();
+      if (file && file.extension === 'md') {
+        (async () => {
+          const content = await this.app.vault.read(file);
+          const metadata = this.rdfUtils.extractCMLDMetadata(content);
+          console.log('Opening CMLDMetadataModal from ribbon');
+          this.openModal(CMLDMetadataModal, file, metadata, async (newMetadata: { [key: string]: string }) => {
+            await this.rdfUtils.updateCMLDMetadata(file, newMetadata);
+            new Notice('CMLD metadata updated');
+          });
+        })();
+      } else {
+        new Notice('No Markdown file active for CMLD metadata edit');
+      }
     });
 
+    console.log('Adding Configure Export ribbon icon');
     this.addRibbonIcon('ri-upload-line', 'Configure Export', () => {
       console.log('Opening ExportConfigModal from ribbon');
-      this.openModal(ExportConfigModal, this, () => {
+      this.openModal(ExportConfigModal, this.settingsManager.settings, async (updatedSettings: RDFPluginSettings) => {
+        this.settingsManager.settings = updatedSettings;
+        await this.settingsManager.saveSettings();
         new Notice('Export settings updated');
       });
     });
 
+    console.log('Adding Edit Semantic Canvas ribbon icon');
     this.addRibbonIcon('ri-node-tree', 'Edit Semantic Canvas', () => {
-      console.log('Opening SemanticCanvasModal from ribbon');
-      this.openModal(SemanticCanvasModal, this, () => {
-        new Notice('Canvas node properties updated');
-      });
+      const file = this.app.workspace.getActiveFile();
+      if (file && file.extension === 'canvas') {
+        console.log('Opening SemanticCanvasModal from ribbon');
+        this.openModal(SemanticCanvasModal, this, file, (nodeId: string, type: string, properties: { [key: string]: string }) => {
+          new Notice('Canvas node properties updated');
+        });
+      } else {
+        new Notice('No canvas file active');
+      }
     });
 
+    console.log('Adding Edit Semantic Edge ribbon icon');
     this.addRibbonIcon('ri-link', 'Edit Semantic Edge', () => {
-      console.log('Opening SemanticEdgeModal from ribbon');
-      this.openModal(SemanticEdgeModal, this, () => {
-        new Notice('Canvas edge properties updated');
-      });
+      const file = this.app.workspace.getActiveFile();
+      if (file && file.extension === 'canvas') {
+        console.log('Opening SemanticEdgeModal from ribbon');
+        this.openModal(SemanticEdgeModal, this, file, (edgeId: string, predicate: string) => {
+          new Notice('Canvas edge properties updated');
+        });
+      } else {
+        new Notice('No canvas file active');
+      }
     });
 
+    console.log('Adding Run SPARQL Query ribbon icon');
     this.addRibbonIcon('ri-search-line', 'Run SPARQL Query', () => {
-      console.log('Opening SPARQLQueryModal from ribbon');
-      this.openModal(SPARQLQueryModal, this, () => {
-        new Notice('SPARQL query executed');
-      });
+      const file = this.app.workspace.getActiveFile();
+      if (file && (file.extension === 'canvas' || file.extension === 'ttl')) {
+        console.log('Opening SPARQLQueryModal from ribbon');
+        this.openModal(SPARQLQueryModal, this, file, async (query: string) => {
+          const results = await this.rdfUtils.executeSPARQL(this.rdfStore, query);
+          new Notice('SPARQL results: ' + JSON.stringify(results, null, 2));
+        });
+      } else {
+        new Notice('No canvas or TTL file active for SPARQL query');
+      }
     });
 
+    console.log('Adding Lookup URI ribbon icon');
     this.addRibbonIcon('ri-link-m', 'Lookup URI', () => {
       console.log('Opening URILookupModal from ribbon');
-      this.openModal(URILookupModal, this.settingsManager.namespaces, this.ontologyTtl, (uri: string) => {
+      this.openModal(URILookupModal, this.settingsManager.getNamespaces(), this.ontologyTtl, (uri: string) => {
         new Notice(`URI inserted: ${uri}`);
       });
     });
 
+    console.log('Adding RDF Graph View ribbon icon');
     this.addRibbonIcon('ri-git-branch-line', 'Open RDF Graph View (2D/3D)', () => {
-      try {
-        console.log('Opening RDFGraphView from ribbon');
-        new Notice('RDF Graph View not implemented');
-        // TODO: Instantiate RDFGraphView when available
-        // e.g., new RDFGraphView(this.app).open();
-      } catch (error) {
-        console.error('Error opening RDFGraphView from ribbon:', error);
-        new Notice(`Error opening RDF Graph View: ${error.message}`);
-      }
+      console.log('Opening RDFGraphView from ribbon');
+      this.openView(RDF_GRAPH_VIEW);
     });
 
+    console.log('Adding Mermaid Diagram View ribbon icon');
     this.addRibbonIcon('ri-flow-chart', 'Open Mermaid Diagram View', () => {
-      try {
-        console.log('Opening MermaidView from ribbon');
-        new Notice('Mermaid Diagram View not implemented');
-        // TODO: Instantiate MermaidView when available
-        // e.g., new MermaidView(this.app).open();
-      } catch (error) {
-        console.error('Error opening MermaidView from ribbon:', error);
-        new Notice(`Error opening Mermaid Diagram View: ${error.message}`);
-      }
+      console.log('Opening MermaidView from ribbon');
+      this.openView(MERMAID_VIEW_TYPE);
     });
   }
 
@@ -243,9 +339,14 @@ export default class RDFPlugin extends Plugin {
       id: 'add-annotation',
       name: 'Add Annotation',
       editorCallback: (editor) => {
+        const selection = editor.getSelection();
+        if (!selection) {
+          new Notice('No text selected for annotation');
+          return;
+        }
         console.log('Opening AnnotationModal');
-        this.openModal(AnnotationModal, this, () => {
-          new Notice('Annotation added');
+        this.openModal(AnnotationModal, selection, (annotation: string) => {
+          new Notice('Annotation added: ' + annotation);
         });
       }
     });
@@ -253,11 +354,23 @@ export default class RDFPlugin extends Plugin {
     this.addCommand({
       id: 'edit-cmld-metadata',
       name: 'Edit CMLD Metadata',
-      editorCallback: (editor) => {
-        console.log('Opening CMLDMetadataModal');
-        this.openModal(CMLDMetadataModal, this, () => {
-          new Notice('CMLD metadata updated');
-        });
+      checkCallback: (checking: boolean) => {
+        const file = this.app.workspace.getActiveFile();
+        if (file && file.extension === 'md') {
+          if (!checking) {
+            (async () => {
+              const content = await this.app.vault.read(file);
+              const metadata = this.rdfUtils.extractCMLDMetadata(content);
+              console.log('Opening CMLDMetadataModal');
+              this.openModal(CMLDMetadataModal, file, metadata, async (newMetadata: { [key: string]: string }) => {
+                await this.rdfUtils.updateCMLDMetadata(file, newMetadata);
+                new Notice('CMLD metadata updated');
+              });
+            })();
+          }
+          return true;
+        }
+        return false;
       }
     });
 
@@ -266,7 +379,9 @@ export default class RDFPlugin extends Plugin {
       name: 'Configure Export',
       callback: () => {
         console.log('Opening ExportConfigModal');
-        this.openModal(ExportConfigModal, this, () => {
+        this.openModal(ExportConfigModal, this.settingsManager.settings, async (updatedSettings: RDFPluginSettings) => {
+          this.settingsManager.settings = updatedSettings;
+          await this.settingsManager.saveSettings();
           new Notice('Export settings updated');
         });
       }
@@ -274,13 +389,13 @@ export default class RDFPlugin extends Plugin {
 
     this.addCommand({
       id: 'edit-semantic-canvas',
-      name: 'Edit Semantic Canvas',
+      name: 'Edit Semantic Node',
       checkCallback: (checking) => {
-        const leaf = this.app.workspace.activeLeaf;
-        if (leaf && leaf.view.getViewType() === 'canvas') {
+        const file = this.app.workspace.getActiveFile();
+        if (file && file.extension === 'canvas') {
           if (!checking) {
             console.log('Opening SemanticCanvasModal');
-            this.openModal(SemanticCanvasModal, this, () => {
+            this.openModal(SemanticCanvasModal, this, file, (nodeId: string, type: string, properties: { [key: string]: string }) => {
               new Notice('Canvas node properties updated');
             });
           }
@@ -294,11 +409,11 @@ export default class RDFPlugin extends Plugin {
       id: 'edit-semantic-edge',
       name: 'Edit Semantic Edge',
       checkCallback: (checking) => {
-        const leaf = this.app.workspace.activeLeaf;
-        if (leaf && leaf.view.getViewType() === 'canvas') {
+        const file = this.app.workspace.getActiveFile();
+        if (file && file.extension === 'canvas') {
           if (!checking) {
             console.log('Opening SemanticEdgeModal');
-            this.openModal(SemanticEdgeModal, this, () => {
+            this.openModal(SemanticEdgeModal, this, file, (edgeId: string, predicate: string) => {
               new Notice('Canvas edge properties updated');
             });
           }
@@ -311,11 +426,19 @@ export default class RDFPlugin extends Plugin {
     this.addCommand({
       id: 'run-sparql-query',
       name: 'Run SPARQL Query',
-      callback: () => {
-        console.log('Opening SPARQLQueryModal');
-        this.openModal(SPARQLQueryModal, this, () => {
-          new Notice('SPARQL query executed');
-        });
+      checkCallback: (checking) => {
+        const file = this.app.workspace.getActiveFile();
+        if (file && (file.extension === 'canvas' || file.extension === 'ttl')) {
+          if (!checking) {
+            console.log('Opening SPARQLQueryModal');
+            this.openModal(SPARQLQueryModal, this, file, async (query: string) => {
+              const results = await this.rdfUtils.executeSPARQL(this.rdfStore, query);
+              new Notice('SPARQL results: ' + JSON.stringify(results, null, 2));
+            });
+          }
+          return true;
+        }
+        return false;
       }
     });
 
@@ -324,7 +447,8 @@ export default class RDFPlugin extends Plugin {
       name: 'Lookup URI',
       editorCallback: (editor) => {
         console.log('Opening URILookupModal');
-        this.openModal(URILookupModal, this.settingsManager.namespaces, this.ontologyTtl, (uri: string) => {
+        this.openModal(URILookupModal, this.settingsManager.getNamespaces(), this.ontologyTtl, (uri: string) => {
+          editor.replaceSelection(`[${uri.split('/').pop()}]`);
           new Notice(`URI inserted: ${uri}`);
         });
       }
@@ -334,14 +458,8 @@ export default class RDFPlugin extends Plugin {
       id: 'open-rdf-graph',
       name: 'Open RDF Graph View (2D/3D)',
       callback: () => {
-        try {
-          console.log('Opening RDFGraphView');
-          new Notice('RDF Graph View not implemented');
-          // TODO: Instantiate RDFGraphView when available
-        } catch (error) {
-          console.error('Error opening RDFGraphView:', error);
-          new Notice(`Error opening RDF Graph View: ${error.message}`);
-        }
+        console.log('Opening RDFGraphView');
+        this.openView(RDF_GRAPH_VIEW);
       }
     });
 
@@ -349,30 +467,27 @@ export default class RDFPlugin extends Plugin {
       id: 'open-mermaid-diagram',
       name: 'Open Mermaid Diagram View',
       callback: () => {
-        try {
-          console.log('Opening MermaidView');
-          new Notice('Mermaid Diagram View not implemented');
-          // TODO: Instantiate MermaidView when available
-        } catch (error) {
-          console.error('Error opening MermaidView:', error);
-          new Notice(`Error opening Mermaid Diagram View: ${error.message}`);
-        }
+        console.log('Opening MermaidView');
+        this.openView(MERMAID_VIEW_TYPE);
       }
     });
   }
 
   registerContextMenu() {
+    console.log('Registering context menu for files');
     this.registerEvent(
       this.app.workspace.on('file-menu', (menu: Menu, file) => {
         if (file.extension === 'canvas' || file.extension === 'md') {
+          console.log(`Adding context menu items for ${file.path}`);
           menu.addItem(item => {
             item
               .setTitle('Run SPARQL Query')
               .setIcon('ri-search-line')
               .onClick(() => {
                 console.log(`Opening SPARQLQueryModal for ${file.path}`);
-                this.openModal(SPARQLQueryModal, this, () => {
-                  new Notice(`SPARQL query executed on ${file.path}`);
+                this.openModal(SPARQLQueryModal, this, file, async (query: string) => {
+                  const results = await this.rdfUtils.executeSPARQL(this.rdfStore, query);
+                  new Notice('SPARQL results: ' + JSON.stringify(results, null, 2));
                 });
               });
           });
@@ -383,8 +498,14 @@ export default class RDFPlugin extends Plugin {
                 .setTitle('Add Annotation')
                 .setIcon('ri-notebook-line')
                 .onClick(() => {
+                  const editor = this.app.workspace.activeEditor?.editor;
+                  const selection = editor ? editor.getSelection() : '';
+                  if (!selection) {
+                    new Notice('No text selected for annotation');
+                    return;
+                  }
                   console.log(`Opening AnnotationModal for ${file.path}`);
-                  this.openModal(AnnotationModal, this, () => {
+                  this.openModal(AnnotationModal, selection, (annotation: string) => {
                     new Notice('Annotation added');
                   });
                 });
@@ -395,10 +516,15 @@ export default class RDFPlugin extends Plugin {
                 .setTitle('Edit CMLD Metadata')
                 .setIcon('ri-file-text-line')
                 .onClick(() => {
-                  console.log(`Opening CMLDMetadataModal for ${file.path}`);
-                  this.openModal(CMLDMetadataModal, this, () => {
-                    new Notice('CMLD metadata updated');
-                  });
+                  (async () => {
+                    const content = await this.app.vault.read(file);
+                    const metadata = this.rdfUtils.extractCMLDMetadata(content);
+                    console.log(`Opening CMLDMetadataModal for ${file.path}`);
+                    this.openModal(CMLDMetadataModal, file, metadata, async (newMetadata: { [key: string]: string }) => {
+                      await this.rdfUtils.updateCMLDMetadata(file, newMetadata);
+                      new Notice('CMLD metadata updated');
+                    });
+                  })();
                 });
             });
 
@@ -408,7 +534,7 @@ export default class RDFPlugin extends Plugin {
                 .setIcon('ri-link-m')
                 .onClick(() => {
                   console.log(`Opening URILookupModal for ${file.path}`);
-                  this.openModal(URILookupModal, this.settingsManager.namespaces, this.ontologyTtl, (uri: string) => {
+                  this.openModal(URILookupModal, this.settingsManager.getNamespaces(), this.ontologyTtl, (uri: string) => {
                     new Notice(`URI inserted: ${uri}`);
                   });
                 });
@@ -418,11 +544,11 @@ export default class RDFPlugin extends Plugin {
           if (file.extension === 'canvas') {
             menu.addItem(item => {
               item
-                .setTitle('Edit Semantic Canvas')
+                .setTitle('Edit Semantic Node')
                 .setIcon('ri-node-tree')
                 .onClick(() => {
                   console.log(`Opening SemanticCanvasModal for ${file.path}`);
-                  this.openModal(SemanticCanvasModal, this, () => {
+                  this.openModal(SemanticCanvasModal, this, file, (nodeId: string, type: string, properties: { [key: string]: string }) => {
                     new Notice('Canvas node properties updated');
                   });
                 });
@@ -434,7 +560,7 @@ export default class RDFPlugin extends Plugin {
                 .setIcon('ri-link')
                 .onClick(() => {
                   console.log(`Opening SemanticEdgeModal for ${file.path}`);
-                  this.openModal(SemanticEdgeModal, this, () => {
+                  this.openModal(SemanticEdgeModal, this, file, (edgeId: string, predicate: string) => {
                     new Notice('Canvas edge properties updated');
                   });
                 });
@@ -446,6 +572,6 @@ export default class RDFPlugin extends Plugin {
   }
 
   async onunload() {
-    // Clean up if needed
+    console.log('Unloading RDFPlugin');
   }
 }

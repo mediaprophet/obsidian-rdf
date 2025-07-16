@@ -6,7 +6,7 @@ export class AnnotationModal extends Modal {
   annotation: string = '';
 
   constructor(app: App, selection: string, onSubmit: (annotation: string) => void) {
-    super();
+    super(app);
     this.selection = selection;
     this.onSubmit = onSubmit;
   }

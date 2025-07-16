@@ -1,5 +1,21 @@
 import { Plugin } from 'obsidian';
-import { RDFPluginSettings, DEFAULT_SETTINGS } from '../main';
+
+export interface RDFPluginSettings {
+  namespaces: { [key: string]: string };
+  // Add other settings as needed
+}
+
+export const DEFAULT_SETTINGS: RDFPluginSettings = {
+  namespaces: {
+    ex: 'http://example.org/',
+    doc: 'http://example.org/doc/',
+    rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+    rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
+    owl: 'http://www.w3.org/2002/07/owl#',
+    oa: 'http://www.w3.org/ns/oa#',
+    skos: 'http://www.w3.org/2004/02/skos/core#'
+  }
+};
 
 export class SettingsManager {
   private plugin: Plugin;

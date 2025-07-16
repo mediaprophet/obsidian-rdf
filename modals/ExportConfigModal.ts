@@ -35,7 +35,7 @@ export class ExportConfigModal extends Modal {
       .setName('Local Export Directory')
       .setDesc('Enter the local path to export the MkDocs project')
       .addText(text => text
-        .setPlaceholder('~/my-docs')
+        .setPlaceholder('export')
         .setValue(this.settings.exportDir)
         .onChange(value => this.settings.exportDir = value));
 
